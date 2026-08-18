@@ -1,0 +1,14 @@
+<idea-plugin>
+    <id>com.teamcomplex.plasticinsight</id>
+    <name>Plastic Insight</name>
+    <vendor>Team Complex</vendor>
+
+    <description><![CDATA[
+        <p>Native Plastic SCM gutter changes and file history for JetBrains Rider.</p>
+        <p>Plastic Insight uses bounded, one-shot <code>cm.exe</code> commands and integrates with Rider's standard VCS user interface.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.vcs</depends>
+    <depends>com.intellij.modules.rider</depends>
+</idea-plugin>

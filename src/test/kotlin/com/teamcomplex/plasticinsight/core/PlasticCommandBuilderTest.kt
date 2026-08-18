@@ -1,0 +1,281 @@
+package com.teamcomplex.plasticinsight.core
+
+import java.nio.file.Path
+import java.time.Duration
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class PlasticCommandBuilderTest {
+    @Test
+    fun `workspace discovery preserves spaces and Unicode in a separate absolute argument`() {
+        val workingDirectory = absoluteTestPath("runner")
+        val targetPath = absoluteTestPath("Sample Workspace α", "nested project")
+        val builder = PlasticCommandBuilder(
+            executable = "C:\\Program Files\\PlasticSCM5\\client\\cm.exe",
+            timeout = Duration.ofSeconds(7),
+        )
+
+        val invocation = builder.workspaceDiscovery(workingDirectory, targetPath)
+
+        assertEquals(
+            listOf(
+                "C:\\Program Files\\PlasticSCM5\\client\\cm.exe",
+                "getworkspacefrompath",
+                targetPath.toString(),
+                "--extended",
+                "--format={wkname}\u001F{wkpath}\u001F{machine}\u001F{guid}\u001F{type}\u001F{dynamic}",
+            ),
+            invocation.commandLine(),
+        )
+        assertEquals(workingDirectory, invocation.workingDirectory)
+        assertEquals(Duration.ofSeconds(7), invocation.timeout)
+    }
+
+    @Test
+    fun `workspace discovery rejects a relative target`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.workspaceDiscovery(
+                workingDirectory = absoluteTestPath("runner"),
+                targetPath = Path.of("relative workspace"),
+            )
+        }
+    }
+
+    @Test
+    fun `workspace discovery rejects a relative working directory`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.workspaceDiscovery(
+                workingDirectory = Path.of("relative runner"),
+                targetPath = absoluteTestPath("workspace"),
+            )
+        }
+    }
+
+    @Test
+    fun `constrained status uses exact filtered contract for a Unicode scope`() {
+        val workspaceRoot = absoluteTestPath("Sample Workspace")
+        val scope = workspaceRoot.resolve("Source with spaces").resolve("Ω.cpp")
+        val builder = PlasticCommandBuilder(executable = "cm.exe", timeout = Duration.ofSeconds(4))
+
+        val invocation = builder.constrainedStatus(workspaceRoot, scope)
+
+        assertEquals(
+            listOf(
+                "cm.exe",
+                "status",
+                scope.toString(),
+                "--machinereadable",
+                "--includeRevId",
+                "--iscochanged",
+                "--controlledchanged",
+                "--changed",
+                "--localdeleted",
+                "--localmoved",
+                "--fieldseparator=\u001F",
+                "--startlineseparator=\u001E",
+                "--endlineseparator=\u001D",
+            ),
+            invocation.commandLine(),
+        )
+        assertEquals(workspaceRoot, invocation.workingDirectory)
+        assertEquals(Duration.ofSeconds(4), invocation.timeout)
+    }
+
+    @Test
+    fun `constrained status rejects a relative workspace root`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.constrainedStatus(
+                workspaceRoot = Path.of("relative workspace"),
+                scope = absoluteTestPath("workspace", "file.txt"),
+            )
+        }
+    }
+
+    @Test
+    fun `constrained status rejects a relative scope`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.constrainedStatus(
+                workspaceRoot = absoluteTestPath("workspace"),
+                scope = Path.of("relative scope"),
+            )
+        }
+    }
+
+    @Test
+    fun `constrained status rejects an absolute scope outside the workspace`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.constrainedStatus(
+                workspaceRoot = absoluteTestPath("workspace"),
+                scope = absoluteTestPath("other workspace", "file.txt"),
+            )
+        }
+    }
+
+    @Test
+    fun `workspace baseline uses changeset spec and raw byte contract`() {
+        val workspaceRoot = absoluteTestPath("Sample Workspace")
+        val basePath = workspaceRoot.resolve("Source with spaces").resolve("Ω.cpp")
+        val builder = PlasticCommandBuilder(
+            executable = "cm.exe",
+            binaryOutputLimitBytes = 4096,
+            errorOutputLimitBytes = 512,
+        )
+
+        val invocation = builder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset = 42)
+
+        assertEquals(
+            listOf("cm.exe", "cat", "$basePath#cs:42", "--raw"),
+            invocation.commandLine(),
+        )
+        assertEquals(workspaceRoot, invocation.workingDirectory)
+        assertEquals(4096, invocation.standardOutputLimitBytes)
+        assertEquals(512, invocation.standardErrorLimitBytes)
+    }
+
+    @Test
+    fun `workspace baseline rejects a path outside the workspace`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.workspaceBaseline(
+                workspaceRoot = absoluteTestPath("workspace"),
+                basePath = absoluteTestPath("other workspace", "file.txt"),
+                workspaceChangeset = 42,
+            )
+        }
+    }
+
+    @Test
+    fun `workspace baseline rejects a negative changeset`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.workspaceBaseline(
+                workspaceRoot = workspaceRoot,
+                basePath = workspaceRoot.resolve("file.txt"),
+                workspaceChangeset = -1,
+            )
+        }
+    }
+
+    @Test
+    fun `file history uses bounded XML contract`() {
+        val workspaceRoot = absoluteTestPath("Sample Workspace")
+        val filePath = workspaceRoot.resolve("Source with spaces").resolve("Ω.cpp")
+        val builder = PlasticCommandBuilder(executable = "cm.exe")
+
+        val invocation = builder.fileHistory(workspaceRoot, filePath, limit = 100)
+
+        assertEquals(
+            listOf(
+                "cm.exe",
+                "history",
+                filePath.toString(),
+                "--xml",
+                "--encoding=utf-8",
+                "--moveddeleted",
+                "--limit=100",
+            ),
+            invocation.commandLine(),
+        )
+        assertEquals(workspaceRoot, invocation.workingDirectory)
+    }
+
+    @Test
+    fun `file history rejects an unbounded limit`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.fileHistory(workspaceRoot, workspaceRoot.resolve("file.txt"), limit = 1001)
+        }
+    }
+
+    @Test
+    fun `historical path resolution keeps the query in one argument`() {
+        val executionDirectory = absoluteTestPath("outside workspace")
+        val builder = PlasticCommandBuilder(executable = "cm.exe")
+
+        val invocation = builder.historicalPathResolution(
+            executionDirectory = executionDirectory,
+            itemId = 123,
+            changeset = 42,
+            repository = "Repository with spaces",
+            server = "server.example.com:8087",
+        )
+
+        assertEquals(
+            listOf(
+                "cm.exe",
+                "find",
+                "revision",
+                "where itemid=123 and changeset=42 on repository 'Repository with spaces@server.example.com:8087'",
+                "--xml",
+                "--encoding=utf-8",
+                "--nototal",
+            ),
+            invocation.commandLine(),
+        )
+        assertEquals(executionDirectory, invocation.workingDirectory)
+    }
+
+    @Test
+    fun `historical path resolution rejects query control characters`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.historicalPathResolution(
+                executionDirectory = absoluteTestPath("outside workspace"),
+                itemId = 123,
+                changeset = 42,
+                repository = "repo' or itemid>0",
+                server = "server",
+            )
+        }
+    }
+
+    @Test
+    fun `historical content uses server path revision spec and raw bytes`() {
+        val executionDirectory = absoluteTestPath("outside workspace")
+        val builder = PlasticCommandBuilder(
+            executable = "cm.exe",
+            binaryOutputLimitBytes = 8192,
+        )
+
+        val invocation = builder.historicalContent(
+            executionDirectory = executionDirectory,
+            historicalPath = "/Source with spaces/Ω.cpp",
+            changeset = 42,
+            repository = "Repository",
+            server = "server.example.com:8087",
+        )
+
+        assertEquals(
+            listOf(
+                "cm.exe",
+                "cat",
+                "serverpath:/Source with spaces/Ω.cpp#cs:42@Repository@server.example.com:8087",
+                "--raw",
+            ),
+            invocation.commandLine(),
+        )
+        assertEquals(8192, invocation.standardOutputLimitBytes)
+    }
+
+    private fun absoluteTestPath(vararg parts: String): Path =
+        parts.fold(Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()) { path, part ->
+            path.resolve(part)
+        }
+}

@@ -1,0 +1,54 @@
+# Gradle and Kotlin build state
+/.gradle/
+/.kotlin/
+**/build/
+
+# IntelliJ Platform and Rider local state
+/.idea/
+/.intellijPlatform/
+/out/
+/run/
+/sandbox/
+*.iml
+*.ipr
+*.iws
+
+# JVM crash and compiled output
+*.class
+hs_err_pid*
+replay_pid*
+
+# Local environment and secrets
+/.env
+/.env.*
+!/.env.example
+/local.properties
+
+# Local implementation planning and handoff state
+/Documentation/Plans/
+
+# Logs, editor backups, and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local AI-agent instructions, routers, and tool state
+/.agents/
+/.codex/
+/.claude/
+/LLM_INSTRUCTIONS.md
+/AGENTS.local.md
+/CLAUDE.local.md
+/CODEX.local.md
+/GEMINI.local.md
+/AGENTS.md
+/CLAUDE.md
+/CODEX.md
+/GEMINI.md
