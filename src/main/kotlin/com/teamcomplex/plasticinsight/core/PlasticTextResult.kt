@@ -13,7 +13,12 @@ data class PlasticTextResult(
     val standardErrorTruncated: Boolean,
     val standardOutputBytesRead: Long,
     val standardErrorBytesRead: Long,
+    val cancelled: Boolean = false,
 ) {
     val succeeded: Boolean
-        get() = !timedOut && !standardOutputTruncated && !standardErrorTruncated && exitCode == 0
+        get() = !timedOut && !cancelled && !standardOutputTruncated && !standardErrorTruncated && exitCode == 0
+
+    init {
+        require(!(timedOut && cancelled)) { "A Plastic command cannot be both timed out and cancelled." }
+    }
 }

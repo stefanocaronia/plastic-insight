@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<PLASTICQUERY>
+  <REVISION>
+    <ID>701</ID>
+    <COMMENT></COMMENT>
+    <DATE>2025-01-02T03:04:05+01:00</DATE>
+    <OWNER>developer@example.test</OWNER>
+    <TYPE>future-type</TYPE>
+    <SIZE>128</SIZE>
+    <CHANGESET>42</CHANGESET>
+    <PARENT>-1</PARENT>
+    <ITEM>/Source Ω/File &amp; Name.cs</ITEM>
+    <ITEMID>501</ITEMID>
+    <BRANCH>br:/main</BRANCH>
+    <PATH>/Source Ω/File &amp; Name.cs</PATH>
+    <REPOSITORY>Sample Repository</REPOSITORY>
+    <REPNAME>Sample Repository</REPNAME>
+    <REPSERVER>example@cloud</REPSERVER>
+    <HASH>AQIDBA==</HASH>
+    <HASHALGORITHM>MD5</HASHALGORITHM>
+    <GUID>aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee</GUID>
+    <FUTUREFIELD>ignored</FUTUREFIELD>
+  </REVISION>
+</PLASTICQUERY>

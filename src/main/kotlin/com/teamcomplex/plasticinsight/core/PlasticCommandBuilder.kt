@@ -48,8 +48,8 @@ class PlasticCommandBuilder(
 
         val normalizedRoot = workspaceRoot.normalize()
         val normalizedScope = scope.normalize()
-        require(normalizedScope.startsWith(normalizedRoot)) {
-            "The Plastic status scope must be inside the workspace root."
+        require(normalizedScope != normalizedRoot && normalizedScope.startsWith(normalizedRoot)) {
+            "The Plastic status scope must be strictly inside the workspace root."
         }
 
         return PlasticInvocation(
@@ -141,7 +141,7 @@ class PlasticCommandBuilder(
         server: String,
     ): PlasticInvocation {
         require(executionDirectory.isAbsolute) { "The historical lookup directory must be absolute." }
-        require(itemId > 0) { "The Plastic item ID must be positive." }
+        require(itemId in 1..Int.MAX_VALUE.toLong()) { "The Plastic item ID must fit the server query range." }
         require(changeset >= 0) { "The historical changeset must not be negative." }
         val repositorySpec = validatedRepositorySpec(repository, server)
         val query = "where itemid=$itemId and changeset=$changeset on repository '$repositorySpec'"

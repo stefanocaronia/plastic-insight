@@ -1,0 +1,388 @@
+package com.teamcomplex.plasticinsight.core
+
+import java.io.IOException
+import java.nio.file.Path
+import java.time.Duration
+import java.time.OffsetDateTime
+import java.util.ArrayDeque
+import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class DefaultPlasticGatewayTest {
+    @Test
+    fun `workspace lookup without a marker is a fast not-found success`() {
+        val runner = RecordingRunner()
+        val gateway = gateway(runner, markerPresent = false)
+
+        val result = assertIs<PlasticResult.Success<PlasticWorkspaceLookup>>(gateway.discoverWorkspace(sampleRoot))
+
+        assertIs<PlasticWorkspaceLookup.NotFound>(result.value)
+        assertEquals(PlasticDiagnosticOrigin.PRECHECK, result.diagnostic.origin)
+        assertEquals(PlasticDiagnosticOutcome.NOT_FOUND, result.diagnostic.outcome)
+        assertTrue(runner.invocations.isEmpty())
+    }
+
+    @Test
+    fun `workspace discovery caches only a validated matching root and can be invalidated`() {
+        val output = workspaceDiscoveryOutput().toByteArray()
+        val runner = RecordingRunner(success(output), success(output))
+        val gateway = gateway(runner)
+
+        val first = assertIs<PlasticWorkspaceLookup.Found>(
+            assertIs<PlasticResult.Success<PlasticWorkspaceLookup>>(gateway.discoverWorkspace(sampleRoot.resolve("nested"))).value,
+        )
+        val cached = assertIs<PlasticResult.Success<PlasticWorkspaceLookup>>(
+            gateway.discoverWorkspace(sampleRoot.resolve("other")),
+        )
+
+        assertEquals(sampleWorkspace, first.workspace)
+        assertEquals(PlasticDiagnosticOrigin.CACHE, cached.diagnostic.origin)
+        assertEquals(1, runner.invocations.size)
+
+        gateway.invalidateCaches()
+        gateway.discoverWorkspace(sampleRoot)
+
+        assertEquals(2, runner.invocations.size)
+    }
+
+    @Test
+    fun `status never parses timeout cancellation truncation nonzero or malformed output as clean`() {
+        val cases = listOf(
+            processResult(timedOut = true) to PlasticFailure.TimedOut,
+            processResult(cancelled = true) to PlasticFailure.Cancelled,
+            processResult(standardOutputTruncated = true) to
+                PlasticFailure.OutputLimitExceeded(standardOutput = true, standardError = false),
+            processResult(exitCode = 7) to PlasticFailure.CommandFailed(7),
+            success("not framed".toByteArray()) to PlasticFailure.MalformedOutput,
+        )
+
+        for ((processResult, expectedFailure) in cases) {
+            val gateway = gateway(RecordingRunner(processResult))
+            val result = assertIs<PlasticResult.Failure>(
+                gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs")),
+            )
+
+            assertEquals(expectedFailure, result.reason)
+        }
+    }
+
+    @Test
+    fun `launch errors become typed failures without retaining exception details`() {
+        val runner = PlasticProcessRunner { throw IOException("private path must not escape") }
+        val gateway = gateway(runner)
+
+        val result = assertIs<PlasticResult.Failure>(
+            gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs")),
+        )
+
+        assertIs<PlasticFailure.LaunchFailed>(result.reason)
+        assertEquals(PlasticDiagnosticOutcome.FAILED, result.diagnostic.outcome)
+    }
+
+    @Test
+    fun `status rejects every current or old path outside the workspace`() {
+        val outsideStatus = (
+            "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D" +
+                "\u001ECH\u001FD:\\outside\\file.cs\u001FFalse\u001F1\u001FNO_MERGES\u001D"
+            ).toByteArray()
+        val gateway = gateway(RecordingRunner(success(outsideStatus)))
+
+        val result = assertIs<PlasticResult.Failure>(
+            gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs")),
+        )
+
+        assertIs<PlasticFailure.MalformedOutput>(result.reason)
+    }
+
+    @Test
+    fun `base content uses move source and workspace changeset while caching defensive copies`() {
+        val raw = byteArrayOf(1, 2, 3, 4)
+        val expected = raw.copyOf()
+        val runner = RecordingRunner(success(raw))
+        val gateway = gateway(runner)
+        val status = sampleStatus()
+        val moved = PlasticPendingChange(
+            codes = setOf(PlasticStatusCode.CHANGED, PlasticStatusCode.MOVED),
+            path = sampleRoot.resolve("new.cs"),
+            oldPath = sampleRoot.resolve("old.cs"),
+            isDirectory = false,
+            revisionId = 99,
+            similarityPercent = 100.0,
+        )
+
+        val first = assertIs<PlasticResult.Success<ByteArray?>>(gateway.baseContent(sampleWorkspace, status, moved))
+        assertContentEquals(expected, first.value)
+        first.value?.set(0, 99)
+        val cached = assertIs<PlasticResult.Success<ByteArray?>>(gateway.baseContent(sampleWorkspace, status, moved))
+
+        assertContentEquals(expected, cached.value)
+        assertEquals(1, runner.invocations.size)
+        assertEquals(
+            listOf("cm.exe", "cat", "${sampleRoot.resolve("old.cs")}#cs:42", "--raw"),
+            runner.invocations.single().commandLine(),
+        )
+    }
+
+    @Test
+    fun `added content has no baseline and starts no process`() {
+        val runner = RecordingRunner()
+        val gateway = gateway(runner)
+        val added = PlasticPendingChange(
+            codes = setOf(PlasticStatusCode.ADDED),
+            path = sampleRoot.resolve("added.cs"),
+            oldPath = null,
+            isDirectory = false,
+            revisionId = null,
+            similarityPercent = null,
+        )
+
+        val result = assertIs<PlasticResult.Success<ByteArray?>>(
+            gateway.baseContent(sampleWorkspace, sampleStatus(), added),
+        )
+
+        assertNull(result.value)
+        assertTrue(runner.invocations.isEmpty())
+    }
+
+    @Test
+    fun `history returns a bounded newest-first page with explicit more state and caches it`() {
+        val runner = RecordingRunner(success(fixture("/fixtures/history/representative.xml")))
+        val gateway = gateway(runner)
+        val file = Path.of("C:\\samples\\Source Ω\\File & Name.cs")
+
+        val first = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway.fileHistory(sampleWorkspace, file, PlasticHistoryRequest(limit = 3)),
+        )
+        val cached = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway.fileHistory(sampleWorkspace, file, PlasticHistoryRequest(limit = 3)),
+        )
+
+        assertEquals(listOf("12", "11", "CO"), first.value.revisions.map { it.changeset.displayValue })
+        assertTrue(first.value.hasMore)
+        assertEquals(PlasticDiagnosticOrigin.CACHE, cached.diagnostic.origin)
+        assertEquals("--limit=4", runner.invocations.single().arguments.last())
+    }
+
+    @Test
+    fun `revision content resolves the historical path and caches defensive bytes`() {
+        val raw = byteArrayOf(0, 0x80.toByte(), 0xff.toByte())
+        val expected = raw.copyOf()
+        val runner = RecordingRunner(
+            success(fixture("/fixtures/historical-revision/one.xml")),
+            success(raw),
+        )
+        val gateway = gateway(runner)
+        val revision = sampleRevision()
+
+        val first = assertIs<PlasticResult.Success<ByteArray>>(gateway.revisionContent(revision))
+        assertContentEquals(expected, first.value)
+        first.value[0] = 99
+        val cached = assertIs<PlasticResult.Success<ByteArray>>(gateway.revisionContent(revision))
+
+        assertContentEquals(expected, cached.value)
+        assertEquals(2, runner.invocations.size)
+        assertEquals("find", runner.invocations[0].arguments[0])
+        assertEquals(
+            "serverpath:/Source Ω/File & Name.cs#cs:42@Sample Repository@example@cloud",
+            runner.invocations[1].arguments[1],
+        )
+    }
+
+    @Test
+    fun `ambiguous historical lookup never selects an arbitrary path`() {
+        val single = fixture("/fixtures/historical-revision/one.xml").toString(Charsets.UTF_8)
+        val revisionNode = single.substringAfter("<PLASTICQUERY>").substringBeforeLast("</PLASTICQUERY>")
+        val ambiguous = "<PLASTICQUERY>$revisionNode$revisionNode</PLASTICQUERY>".toByteArray()
+        val runner = RecordingRunner(success(ambiguous))
+        val gateway = gateway(runner)
+
+        val result = assertIs<PlasticResult.Failure>(gateway.revisionContent(sampleRevision()))
+
+        assertIs<PlasticFailure.AmbiguousRevision>(result.reason)
+        assertEquals(1, runner.invocations.size)
+    }
+
+    @Test
+    fun `unsupported Plastic metadata becomes a typed execution failure`() {
+        val lookup = fixture("/fixtures/historical-revision/one.xml")
+            .toString(Charsets.UTF_8)
+            .replace("/Source Ω/File &amp; Name.cs", "/Source Ω/File#Name.cs")
+            .toByteArray()
+        val runner = RecordingRunner(success(lookup))
+        val gateway = gateway(runner)
+
+        val result = assertIs<PlasticResult.Failure>(gateway.revisionContent(sampleRevision()))
+
+        assertIs<PlasticFailure.ExecutionFailed>(result.reason)
+        assertEquals(1, runner.invocations.size)
+    }
+
+    @Test
+    fun `pre-cancellation and disposal do not run commands`() {
+        val runner = RecordingRunner()
+        val gateway = gateway(runner)
+        val cancellation = PlasticCancellationSource().also { it.cancel() }
+
+        val cancelled = assertIs<PlasticResult.Failure>(
+            gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs"), cancellation.token),
+        )
+        gateway.close()
+        val disposed = assertIs<PlasticResult.Failure>(
+            gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs")),
+        )
+
+        assertIs<PlasticFailure.Cancelled>(cancelled.reason)
+        assertIs<PlasticFailure.Disposed>(disposed.reason)
+        assertTrue(runner.invocations.isEmpty())
+    }
+
+    @Test
+    fun `invalidation prevents an in-flight result from repopulating the content cache`() {
+        val runner = BlockingRunner(success(byteArrayOf(1, 2, 3)))
+        val gateway = gateway(runner)
+        val changed = PlasticPendingChange(
+            codes = setOf(PlasticStatusCode.CHANGED),
+            path = sampleRoot.resolve("changed.cs"),
+            oldPath = null,
+            isDirectory = false,
+            revisionId = 7,
+            similarityPercent = null,
+        )
+        val firstResult = AtomicReference<PlasticResult<ByteArray?>>()
+        val worker = Thread.ofPlatform().start {
+            firstResult.set(gateway.baseContent(sampleWorkspace, sampleStatus(), changed))
+        }
+
+        assertTrue(runner.entered.await(5, TimeUnit.SECONDS))
+        gateway.invalidateCaches()
+        runner.release.countDown()
+        worker.join(5_000)
+
+        assertFalse(worker.isAlive)
+        assertIs<PlasticResult.Success<ByteArray?>>(firstResult.get())
+        assertIs<PlasticResult.Success<ByteArray?>>(gateway.baseContent(sampleWorkspace, sampleStatus(), changed))
+        assertEquals(2, runner.callCount.get())
+    }
+
+    private fun gateway(
+        runner: PlasticProcessRunner,
+        markerPresent: Boolean = true,
+    ): DefaultPlasticGateway =
+        DefaultPlasticGateway(
+            cli = PlasticCli(runner, executable = "cm.exe"),
+            historicalLookupDirectory = Path.of("C:\\outside-workspaces"),
+            workspaceLocator = PlasticWorkspaceLocator { marker ->
+                markerPresent && marker == sampleRoot.resolve(".plastic").resolve("plastic.workspace")
+            },
+        )
+
+    private fun workspaceDiscoveryOutput(): String =
+        listOf(
+            sampleWorkspace.name,
+            sampleWorkspace.root.toString(),
+            sampleWorkspace.machine,
+            sampleWorkspace.id.toString(),
+            sampleWorkspace.workspaceType,
+            "static",
+        ).joinToString("\u001F")
+
+    private fun sampleStatus(): PlasticWorkspaceStatus =
+        PlasticWorkspaceStatus(
+            workspaceChangeset = 42,
+            repository = "Sample Repository",
+            server = "example@cloud",
+            changes = emptyList(),
+        )
+
+    private fun sampleRevision(): PlasticHistoryRevision =
+        PlasticHistoryRevision(
+            revisionSpec = "sample#cs:42",
+            branch = "/main",
+            createdAt = OffsetDateTime.parse("2025-01-02T03:04:05+01:00"),
+            entryKind = PlasticHistoryEntryKind.CONTENT_REVISION,
+            revisionType = PlasticRevisionType("txt"),
+            changeset = PlasticHistoryChangeset.Number(42),
+            owner = "developer@example.test",
+            comment = "",
+            repository = "Sample Repository",
+            server = "example@cloud",
+            dataStatus = PlasticRevisionDataStatus("Available"),
+            itemPathOrSpec = "C:\\samples\\Source Ω\\File & Name.cs",
+            itemId = 501,
+            sizeBytes = 3,
+            hash = "AQID",
+            hashAlgorithm = "MD5",
+        )
+
+    private fun fixture(path: String): ByteArray = requireNotNull(javaClass.getResource(path)).readBytes()
+
+    private class RecordingRunner(
+        vararg results: PlasticProcessResult,
+    ) : PlasticProcessRunner {
+        private val results = ArrayDeque(results.toList())
+        val invocations = ArrayList<PlasticInvocation>()
+
+        override fun run(invocation: PlasticInvocation): PlasticProcessResult {
+            invocations.add(invocation)
+            return results.removeFirst()
+        }
+    }
+
+    private class BlockingRunner(
+        private val result: PlasticProcessResult,
+    ) : PlasticProcessRunner {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val callCount = AtomicInteger()
+
+        override fun run(invocation: PlasticInvocation): PlasticProcessResult {
+            if (callCount.incrementAndGet() == 1) {
+                entered.countDown()
+                check(release.await(5, TimeUnit.SECONDS))
+            }
+            return result
+        }
+    }
+
+    private companion object {
+        val sampleRoot: Path = Path.of("C:\\samples")
+        val sampleWorkspace = PlasticWorkspace(
+            name = "Sample Workspace",
+            root = sampleRoot,
+            machine = "BUILD-01",
+            id = UUID.fromString("11111111-2222-4333-8444-555555555555"),
+            workspaceType = "regular",
+            isDynamic = false,
+        )
+
+        fun success(standardOutput: ByteArray): PlasticProcessResult =
+            processResult(standardOutput = standardOutput)
+
+        fun processResult(
+            exitCode: Int? = 0,
+            standardOutput: ByteArray = byteArrayOf(),
+            timedOut: Boolean = false,
+            cancelled: Boolean = false,
+            standardOutputTruncated: Boolean = false,
+        ): PlasticProcessResult =
+            PlasticProcessResult(
+                exitCode = if (timedOut || cancelled) null else exitCode,
+                standardOutput = standardOutput,
+                standardError = byteArrayOf(),
+                duration = Duration.ofMillis(5),
+                timedOut = timedOut,
+                standardOutputTruncated = standardOutputTruncated,
+                cancelled = cancelled,
+            )
+    }
+}

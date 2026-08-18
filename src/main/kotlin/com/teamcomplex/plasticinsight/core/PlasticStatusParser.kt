@@ -2,7 +2,11 @@ package com.teamcomplex.plasticinsight.core
 
 /** Parses the framed machine-readable `status --includeRevId` contract. */
 class PlasticStatusParser {
-    fun parse(output: String): PlasticWorkspaceStatus {
+    fun parse(
+        output: String,
+        cancellationCheck: () -> Unit = {},
+    ): PlasticWorkspaceStatus {
+        cancellationCheck()
         var outputEnd = output.length
         while (outputEnd > 0 && (output[outputEnd - 1] == '\r' || output[outputEnd - 1] == '\n')) {
             outputEnd--
@@ -15,6 +19,7 @@ class PlasticStatusParser {
         var header: Header? = null
         val changes = ArrayList<PlasticPendingChange>()
         while (cursor < outputEnd) {
+            cancellationCheck()
             if (output[cursor] != RECORD_SEPARATOR) {
                 throw PlasticParseException("Plastic status contains an unframed record.")
             }

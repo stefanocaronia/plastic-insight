@@ -47,7 +47,7 @@ Requirements:
 - FR-004: avoid claiming directories that are not Plastic workspaces;
 - FR-005: cache stable workspace metadata and invalidate it when roots change.
 
-Implementation baseline as of 2026-08-19: the core can build and execute the shell-free `getworkspacefrompath` contract with absolute execution and target paths, `--extended`, and six fields separated by U+001F. The raw contract was validated read-only against two representative regular/static workspaces. A fixture-tested parser now returns immutable workspace metadata, normalizes Windows drive-letter casing, distinguishes static and dynamic workspaces, and rejects malformed field counts, identifiers, paths, and modes with a typed parse exception. Command failure mapping and caching remain required before FR-001 through FR-005 are complete.
+Implementation baseline as of 2026-08-19: the core first locates the nearest `.plastic/plastic.workspace` marker by walking parent directories, then executes the shell-free `getworkspacefrompath` contract only for that candidate root. The fixture-tested parser returns immutable workspace metadata, normalizes Windows drive-letter casing, distinguishes static and dynamic workspaces, and rejects malformed or inconsistent results. Workspace metadata is held in a bounded LRU cache with explicit invalidation and disposal; typed failures distinguish missing or invalid executables, launch/execution failures, timeouts, cancellation, truncation, command failures, and malformed output. Rider root-change wiring remains part of the native VCS slice.
 
 ### 4.2 Editor gutter changes
 
@@ -66,7 +66,7 @@ Requirements:
 - FR-014: let Rider calculate and render line differences instead of maintaining a custom editor painter;
 - FR-015: show no misleading gutter state when base content cannot be retrieved.
 
-Implementation baseline as of 2026-08-19: the core builds constrained status invocations and retrieves the workspace baseline through `cm cat <absolute-path>#cs:<workspace-changeset> --raw` into a bounded binary result without text conversion or temporary files. The status parser performs a single framing pass, validates the header and revision IDs, preserves combined status codes, and distinguishes ordinary records from moves carrying old/new paths. Malformed or unknown records fail explicitly instead of being interpreted as a clean workspace. Read-only validation on a representative workspace completed in approximately 0.5 seconds for a 1.4 KiB baseline file. The verified working file carries a local UTF-8 BOM that Plastic omits from `cat --raw`; the remaining bytes match exactly, so Rider integration must avoid inventing or normalizing repository bytes while testing that this metadata-only difference does not create a false line marker.
+Implementation baseline as of 2026-08-19: the core rejects unconstrained workspace-root status scans, builds only strictly contained status invocations, and retrieves the workspace baseline through `cm cat <absolute-path>#cs:<workspace-changeset> --raw` into a bounded binary result without text conversion or temporary files. The status parser performs a single framing pass with per-record cancellation checks, validates the header, revision IDs, and current/old path containment, preserves combined status codes, and distinguishes ordinary records from moves. Malformed, unknown, truncated, or non-zero results fail explicitly instead of being interpreted as a clean workspace. Baseline bytes use defensive copies and a bounded cache; files larger than the per-entry cache limit are returned but not retained. Read-only validation on a representative workspace completed in approximately 0.5 seconds for a 1.4 KiB baseline file. The verified working file carries a local UTF-8 BOM that Plastic omits from `cat --raw`; the remaining bytes match exactly, so Rider integration must avoid inventing or normalizing repository bytes while testing that this metadata-only difference does not create a false line marker.
 
 ### 4.3 File history
 
@@ -89,7 +89,7 @@ Requirements:
 - FR-024: preserve rename/move context when Plastic exposes it;
 - FR-025: cancellation shall terminate or abandon the associated CLI process safely.
 
-Implementation baseline as of 2026-08-18: the core builds bounded XML history, historical-path lookup, and `serverpath:` raw-content invocations. Live read-only validation succeeded for history, `find revision`, and historical `cat` on a representative workspace. Typed XML parsing, paging state, cancellation, and Rider sessions remain outstanding.
+Implementation baseline as of 2026-08-19: the core builds bounded XML history, historical-path lookup, and `serverpath:` raw-content invocations. Forward-only StAX parsers consume captured UTF-8 bytes directly, reject DTD/external entities, enforce entry limits, preserve Unicode and multiline comments, model checkout and metadata-only events, and treat zero/one/multiple historical lookups as not-found/found/ambiguous. History is exposed newest-first as a bounded initial view with one-record lookahead and explicit `hasMore`; `cm history` has no verified cursor or offset, so this is intentionally bounded loading rather than simulated native pagination. Historical paths and selected content use bounded LRU caches, content is fetched lazily, and unavailable, archived, purged, ambiguous, malformed, timed-out, truncated, and cancelled outcomes remain distinct. Live read-only gateway validation succeeded end to end for discovery, status, history, lookup, and historical bytes. Rider history sessions and long-history UI behavior remain Phase 4 work.
 
 ### 4.4 Diagnostics and settings
 
@@ -98,6 +98,8 @@ Implementation baseline as of 2026-08-18: the core builds bounded XML history, h
 - FR-032: provide a lightweight connection test showing CLI version and detected workspace.
 - FR-033: log command names, duration, and exit status without leaking credentials or full file content.
 - FR-034: show actionable errors rather than silent empty views.
+
+Implementation baseline as of 2026-08-19: the core resolves `cm.exe` once in the order explicit setting, `CM_EXE`, common 64-bit and 32-bit installation paths, then `PATH`, without recursive filesystem scans. Runtime settings carry a positive command timeout and a canonical non-workspace directory for historical queries. Privacy-safe diagnostics retain only operation, origin, outcome, duration, exit code, and byte counts; they never retain arguments, paths, stderr text, XML, or file content. Rider settings UI, notifications, and the connection-test action remain later adapter work.
 
 ## 5. Out of scope for the MVP
 
@@ -143,7 +145,7 @@ Plastic Insight should be mostly invisible. Once a Plastic root is mapped, Rider
 - NFR-014: diagnostics shall record command duration, output byte count, cache hits, coalescing, and cancellations without recording file content.
 - NFR-015: tracked documentation and test fixtures shall use synthetic workspace, repository, server, path, and identifier data. Details of live validation environments remain local and unversioned.
 
-The core process runner currently implements NFR-012 by draining both process streams while retaining only their command-specific byte limits. It reports total bytes read and truncation separately, and a truncated result cannot be successful. Default limits are 8 MiB for text, 32 MiB for revision content, 256 KiB for stderr, and 64 KiB for workspace discovery. Each invocation isolates the two blocking stream readers on short-lived virtual threads and closes their executor deterministically instead of occupying Rider's shared fork-join pool.
+The core process runner currently implements NFR-007 and NFR-012 by draining both process streams while retaining only their command-specific byte limits. It reports total bytes read and truncation separately, and a truncated result cannot be successful. Default limits are 8 MiB for text/XML, 32 MiB for revision content, 256 KiB for stderr, and 64 KiB for workspace discovery. Each invocation isolates the two blocking stream readers on short-lived virtual threads, polls only while that invocation is active, and applies bounded graceful/forceful cleanup to the process tree on timeout, cancellation, interruption, or disposal. No executor or process survives as idle plugin state. Workspace, history, historical-path, and byte-content caches are LRU bounded by both entry count and estimated retained bytes; lifecycle generations prevent an in-flight result from repopulating a cache after invalidation or disposal.
 
 ## 8. Logical data flow
 
@@ -176,7 +178,7 @@ Using a real Plastic workspace in Rider 2026.2:
 
 ### 9.1 Current build-validation baseline
 
-As of 2026-08-18, the pure Kotlin/JUnit unit-test suite and `buildPlugin` pass against the local Rider 2026.2 SDK and its JetBrains Runtime 25. Pure unit tests do not depend on Rider's bundled test framework; that dependency will be introduced only when IntelliJ fixture tests require it. The current installable artifact is `build/distributions/plastic-insight-0.1.0-SNAPSHOT.zip`.
+As of 2026-08-19, 96 automatic Kotlin/JUnit tests pass and one read-only live gateway test is skipped unless explicitly enabled; that opt-in test also passes separately against a representative Plastic file. `test`, `buildPlugin`, `verifyPluginProjectConfiguration`, and `verifyPluginStructure` pass against the local Rider 2026.2 SDK and JetBrains Runtime 25. Pure tests do not depend on Rider's bundled test framework; that dependency will be introduced only when IntelliJ fixture tests require it. The current installable artifact is `build/distributions/plastic-insight-0.1.0-SNAPSHOT.zip`. Project verification emits the known recommendation to remove the deliberate `262.*` upper compatibility bound; compatibility policy remains a Phase 5 decision.
 
 ## 10. Future capability map
 

@@ -14,34 +14,49 @@ class PlasticCli(
 ) {
     private val commandBuilder = PlasticCommandBuilder(executable, timeout)
 
-    fun version(workingDirectory: Path): PlasticTextResult =
-        execute(workingDirectory, "version")
+    fun version(
+        workingDirectory: Path,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticTextResult =
+        execute(
+            PlasticInvocation(
+                executable = executable,
+                arguments = listOf("version"),
+                workingDirectory = workingDirectory,
+                timeout = timeout,
+            ),
+            cancellation,
+        )
 
     fun constrainedStatus(
         workspaceRoot: Path,
         scope: Path,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
     ): PlasticTextResult =
-        execute(commandBuilder.constrainedStatus(workspaceRoot, scope))
+        execute(commandBuilder.constrainedStatus(workspaceRoot, scope), cancellation)
 
     fun workspaceFromPath(
         workingDirectory: Path,
         targetPath: Path,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
     ): PlasticTextResult =
-        execute(commandBuilder.workspaceDiscovery(workingDirectory, targetPath))
+        execute(commandBuilder.workspaceDiscovery(workingDirectory, targetPath), cancellation)
 
     fun workspaceBaseline(
         workspaceRoot: Path,
         basePath: Path,
         workspaceChangeset: Long,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
     ): PlasticBinaryResult =
-        executeBinary(commandBuilder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset))
+        executeBinary(commandBuilder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset), cancellation)
 
     fun fileHistory(
         workspaceRoot: Path,
         filePath: Path,
         limit: Int,
-    ): PlasticTextResult =
-        execute(commandBuilder.fileHistory(workspaceRoot, filePath, limit))
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticBinaryResult =
+        executeBinary(commandBuilder.fileHistory(workspaceRoot, filePath, limit), cancellation)
 
     fun historicalPathResolution(
         executionDirectory: Path,
@@ -49,8 +64,9 @@ class PlasticCli(
         changeset: Long,
         repository: String,
         server: String,
-    ): PlasticTextResult =
-        execute(
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticBinaryResult =
+        executeBinary(
             commandBuilder.historicalPathResolution(
                 executionDirectory = executionDirectory,
                 itemId = itemId,
@@ -58,6 +74,7 @@ class PlasticCli(
                 repository = repository,
                 server = server,
             ),
+            cancellation,
         )
 
     fun historicalContent(
@@ -66,6 +83,7 @@ class PlasticCli(
         changeset: Long,
         repository: String,
         server: String,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
     ): PlasticBinaryResult =
         executeBinary(
             commandBuilder.historicalContent(
@@ -75,6 +93,7 @@ class PlasticCli(
                 repository = repository,
                 server = server,
             ),
+            cancellation,
         )
 
     fun execute(workingDirectory: Path, vararg arguments: String): PlasticTextResult =
@@ -85,10 +104,14 @@ class PlasticCli(
                 workingDirectory = workingDirectory,
                 timeout = timeout,
             ),
+            PlasticCancellation.NONE,
         )
 
-    private fun execute(invocation: PlasticInvocation): PlasticTextResult {
-        val result = runner.run(invocation)
+    private fun execute(
+        invocation: PlasticInvocation,
+        cancellation: PlasticCancellation,
+    ): PlasticTextResult {
+        val result = runner.run(invocation, cancellation)
 
         return PlasticTextResult(
             invocation = invocation,
@@ -101,11 +124,15 @@ class PlasticCli(
             standardErrorTruncated = result.standardErrorTruncated,
             standardOutputBytesRead = result.standardOutputBytesRead,
             standardErrorBytesRead = result.standardErrorBytesRead,
+            cancelled = result.cancelled,
         )
     }
 
-    private fun executeBinary(invocation: PlasticInvocation): PlasticBinaryResult {
-        val result = runner.run(invocation)
+    private fun executeBinary(
+        invocation: PlasticInvocation,
+        cancellation: PlasticCancellation,
+    ): PlasticBinaryResult {
+        val result = runner.run(invocation, cancellation)
 
         return PlasticBinaryResult(
             invocation = invocation,
@@ -118,6 +145,7 @@ class PlasticCli(
             standardErrorTruncated = result.standardErrorTruncated,
             standardOutputBytesRead = result.standardOutputBytesRead,
             standardErrorBytesRead = result.standardErrorBytesRead,
+            cancelled = result.cancelled,
         )
     }
 }

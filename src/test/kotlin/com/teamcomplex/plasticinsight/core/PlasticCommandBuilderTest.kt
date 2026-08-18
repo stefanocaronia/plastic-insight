@@ -111,6 +111,19 @@ class PlasticCommandBuilderTest {
     }
 
     @Test
+    fun `constrained status rejects an unbounded workspace-root scope`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.constrainedStatus(
+                workspaceRoot = workspaceRoot,
+                scope = workspaceRoot,
+            )
+        }
+    }
+
+    @Test
     fun `constrained status rejects an absolute scope outside the workspace`() {
         val builder = PlasticCommandBuilder()
 
@@ -241,6 +254,21 @@ class PlasticCommandBuilderTest {
                 itemId = 123,
                 changeset = 42,
                 repository = "repo' or itemid>0",
+                server = "server",
+            )
+        }
+    }
+
+    @Test
+    fun `historical path resolution rejects an item ID outside the server query range`() {
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.historicalPathResolution(
+                executionDirectory = absoluteTestPath("outside workspace"),
+                itemId = Int.MAX_VALUE.toLong() + 1,
+                changeset = 42,
+                repository = "repository",
                 server = "server",
             )
         }
