@@ -1,18 +1,35 @@
 import org.gradle.jvm.toolchain.JavaLanguageVersion
-import org.gradle.jvm.toolchain.JvmVendorSpec
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.intellij.platform")
 }
 
-val riderHome = providers.gradleProperty("riderHome")
+val riderVersion = "2026.2"
+val configuredRiderHome = providers.gradleProperty("riderHome")
     .orElse(providers.environmentVariable("RIDER_HOME"))
-    .orElse(providers.environmentVariable("LOCALAPPDATA").map { "$it/Programs/Rider" })
+    .orNull
+val defaultRiderHome = providers.environmentVariable("LOCALAPPDATA")
+    .orNull
+    ?.let { file("$it/Programs/Rider") }
+    ?.takeIf { it.isDirectory }
+val isCi = providers.environmentVariable("CI")
+    .map { it.equals("true", ignoreCase = true) }
+    .orElse(false)
+    .get()
+val localRiderHome = if (isCi) null else configuredRiderHome?.let(::file) ?: defaultRiderHome
 
 dependencies {
     intellijPlatform {
-        local(riderHome)
+        if (localRiderHome != null) {
+            local(localRiderHome)
+        } else {
+            rider(riderVersion) {
+                useInstaller = false
+            }
+            jetbrainsRuntime()
+        }
     }
 
     testImplementation(kotlin("test-junit"))
@@ -22,7 +39,6 @@ dependencies {
 kotlin {
     jvmToolchain {
         languageVersion = JavaLanguageVersion.of(25)
-        vendor = JvmVendorSpec.JETBRAINS
     }
 }
 
@@ -33,6 +49,14 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = "262"
             untilBuild = "262.*"
+        }
+    }
+
+    pluginVerification {
+        ides {
+            create(IntelliJPlatformType.Rider, riderVersion) {
+                useInstaller = false
+            }
         }
     }
 }

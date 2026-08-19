@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+    <defs>
+        <linearGradient id="plasticInsightDarkGradient" x1="6" y1="5" x2="34" y2="35" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#927BFF"/>
+            <stop offset="1" stop-color="#2AD6C3"/>
+        </linearGradient>
+    </defs>
+    <rect x="3" y="3" width="34" height="34" rx="9" fill="url(#plasticInsightDarkGradient)"/>
+    <path d="M8.5 20C11.3 15.3 15.1 13 20 13s8.7 2.3 11.5 7c-2.8 4.7-6.6 7-11.5 7S11.3 24.7 8.5 20Z" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="20" cy="20" r="4.5" fill="#FFFFFF"/>
+    <circle cx="20" cy="20" r="2.1" fill="#45339E"/>
+    <path d="M29.5 8.5v4M27.5 10.5h4" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

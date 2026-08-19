@@ -4,8 +4,16 @@
     <vendor>Team Complex</vendor>
 
     <description><![CDATA[
-        <p>Native Plastic SCM changes, gutter diffs, and file history for JetBrains Rider.</p>
-        <p>Plastic Insight is an inspector-first integration, not a complete Plastic client. It uses bounded, one-shot <code>cm.exe</code> commands and supports only explicitly documented workspace actions.</p>
+        <p><b>Plastic SCM insight where you code.</b></p>
+        <p>Plastic Insight adds native change markers, Local Changes, byte-accurate diffs, and bounded file history to JetBrains Rider.</p>
+        <ul>
+            <li>Added, modified, and deleted lines in Rider's standard gutter</li>
+            <li>Controlled and unversioned files in Local Changes</li>
+            <li>Historical revision comparison with lazy content loading</li>
+            <li>Exact Add to VCS and confirmed Rollback for selected items</li>
+        </ul>
+        <p>This is a lightweight, inspector-first integration, not a complete Plastic client. Check-in, update, switch, merge, branches, shelves, locks, and administration remain in the Plastic GUI or CLI.</p>
+        <p>Requires Windows, Rider 2026.2, and the Plastic <code>cm.exe</code> CLI.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

@@ -1,5 +1,6 @@
 package com.teamcomplex.plasticinsight.rider
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
@@ -61,7 +62,7 @@ internal class PlasticHistoryProvider(
                 EditorNotificationPanel(EditorNotificationPanel.Status.Info).apply {
                     text(
                         "Showing the ${it.revisionList.size} most recent Plastic revisions. " +
-                            "Use Load More Revisions in the toolbar to expand this bounded view.",
+                            "Use the download-arrow button in the toolbar to load more.",
                     )
                 }
             }
@@ -97,7 +98,11 @@ internal class PlasticHistoryProvider(
 
     private inner class LoadMoreRevisionsAction(
         private val refresher: Runnable,
-    ) : DumbAwareAction("Load More Revisions") {
+    ) : DumbAwareAction(
+        "Load More Revisions",
+        "Load a larger bounded Plastic history view",
+        AllIcons.Actions.Download,
+    ) {
         override fun actionPerformed(event: AnActionEvent) {
             val session = event.getData(VcsDataKeys.HISTORY_SESSION) as? PlasticHistorySession ?: return
             if (!session.hasMore) return

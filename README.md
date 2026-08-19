@@ -1,62 +1,66 @@
 # Plastic Insight
 
-Plastic Insight is a small, inspector-first Rider VCS integration for Unity Version Control / Plastic SCM. It is not a replacement for the Plastic GUI or a complete Plastic client. Its first goals are the two workflows that matter most while coding:
+[![Build](https://github.com/stefanocaronia/plastic-insight/actions/workflows/build.yml/badge.svg)](https://github.com/stefanocaronia/plastic-insight/actions/workflows/build.yml)
 
-1. show added, modified, and deleted lines in Rider's editor gutter;
-2. show the history of the current file and allow revisions to be compared.
+Plastic Insight is a lightweight, inspector-first Rider integration for Unity Version Control / Plastic SCM. It brings the Plastic information needed while coding into Rider without trying to replace the Plastic GUI or become a complete Plastic client.
 
-The project deliberately invokes `cm.exe` as independent processes. It does not depend on the persistent `cm shell` path used by the existing Unity Version Control plugin.
+## Features
 
-Plastic Insight implements only a narrow set of workspace actions through Rider's standard UI:
+- native added, modified, and deleted line markers in Rider's editor gutter;
+- Plastic changes and unversioned files in Rider's **Local Changes** view;
+- byte-accurate base revisions and Rider's standard side-by-side diff;
+- native file history with lazy revision content and revision comparison;
+- bounded history loading: 50 revisions initially, then 200 or 999 only on request;
+- exact **Add to VCS** and confirmed **Rollback** for explicitly selected items;
+- moved, deleted, added, private, Unicode, and externally changed files.
 
-- **Add to VCS** adds the explicitly selected local items;
-- **Rollback** runs Plastic undo for the explicitly selected changes after Rider's confirmation;
-- deleting or moving a file is Rider's normal local filesystem operation, which Plastic Insight then reports;
-- **Move to Another Changelist** changes Rider's local grouping only.
+Plastic commands run as bounded, cancellable, one-shot `cm.exe` processes. The plugin has no recurring Plastic polling loop, persistent shell, background executor, or unbounded cache.
 
-Check-in/commit, update, switch, merge, branches, shelves, locks, and repository administration are not implemented. Use the Plastic GUI or CLI for those workflows.
+## Product boundary
 
-## Current state
+Plastic Insight is not a check-in client. Check-in/commit, update, switch, merge, branches, shelves, locks, and repository administration are intentionally not implemented. Use the Plastic GUI or CLI for those workflows.
 
-The repository contains the standalone Rider plugin, a platform-independent Plastic command layer, tests, and the product documents. The current Rider adapter provides workspace mapping, local changes, unversioned files, gutter markers, diffs, exact add, exact rollback, and a bounded native file-history view with on-demand historical content. A Plastic Insight context submenu exposes the standard Rider history action without requiring a keyboard-layout-specific shortcut. History starts with the 50 newest revisions and can be expanded deliberately to 200 and then 999 rows from its toolbar; Plastic has no history cursor, so each expansion is a fresh bounded query rather than simulated pagination. Pending moves are resolved through the controlled old server path when Plastic rejects the private-looking local destination.
+Deleting or moving a file remains Rider's normal local filesystem operation, which Plastic Insight reports afterward. **Move to Another Changelist** changes only Rider's local grouping.
 
-## Prerequisites
+## Requirements and compatibility
 
-- JetBrains Rider 2026.2 installed locally;
-- Unity Version Control / Plastic SCM CLI (`cm.exe`);
-- PowerShell 7 or Windows PowerShell;
-- internet access on the first build so Gradle can resolve build dependencies.
+- Windows with Unity Version Control / Plastic SCM CLI (`cm.exe`);
+- JetBrains Rider 2026.2 (`262.*` platform builds);
+- an existing Plastic workspace mapped to **Plastic Insight** in Rider's Version Control settings.
 
-The current distribution is Windows-first and has not yet been validated on Linux. Most parsing and gateway logic is platform-neutral, but executable discovery and packaging still assume the Windows Rider and `cm.exe` layout.
+This first release is Windows-only. Linux is not advertised as supported because executable discovery and the development packaging flow have not been validated there. PowerShell is required only when building from source, not when installing the ZIP.
 
-The build resolves Rider in this order:
+`cm.exe` is resolved from `CM_EXE`, the standard Plastic installation folders, or `PATH`.
 
-```text
--RiderHome, RIDER_HOME, %LOCALAPPDATA%\Programs\Rider
-```
+## Install
 
-Gradle can also be invoked directly with `-PriderHome=C:/path/to/Rider`.
+1. Download `plastic-insight-0.1.0.zip` from the GitHub Release.
+2. In Rider open **Settings | Plugins**, use the gear menu, and select **Install Plugin from Disk**.
+3. Select the ZIP and restart Rider when requested.
+4. Open **Settings | Version Control** and map the Plastic workspace root to **Plastic Insight**.
 
-## Build from this folder
+## Build from source
+
+The build targets a locally installed Rider SDK. It resolves Rider from `-RiderHome`, `RIDER_HOME`, or `%LOCALAPPDATA%\Programs\Rider`.
 
 ```powershell
 .\build.ps1
 ```
 
-Equivalent Gradle commands:
+Equivalent commands:
 
 ```powershell
 .\gradlew.bat test
 .\gradlew.bat buildPlugin
 ```
 
-The installable archive is written to `build\distributions`.
-
-To launch a disposable Rider instance with the plugin installed:
+The installable archive is written to `build\distributions`. To launch a disposable Rider instance:
 
 ```powershell
 .\build.ps1 runIde
 ```
+
+GitHub Actions runs the same tests and plugin verification on every push and pull request. A matching `v*` tag builds the package and publishes it automatically as a GitHub Release asset.
 
 ## Documentation
 
