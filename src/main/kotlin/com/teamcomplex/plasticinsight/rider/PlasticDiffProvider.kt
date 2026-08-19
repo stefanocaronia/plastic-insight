@@ -9,7 +9,6 @@ import com.intellij.openapi.vcs.changes.ContentRevision
 import com.intellij.openapi.vcs.diff.DiffProvider
 import com.intellij.openapi.vcs.diff.ItemLatestState
 import com.intellij.openapi.vcs.history.VcsRevisionNumber
-import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.vcsUtil.VcsUtil
 import com.teamcomplex.plasticinsight.core.PlasticStatusCode
@@ -111,7 +110,7 @@ internal class PlasticBaseContentRevision(
         vcs.loadBaseContent(snapshot, basePath, vcs.currentCancellation())
 
     override fun getContent(): String =
-        CharsetToolkit.bytesToString(getContentAsBytes(), file.getCharset(vcs.project))
+        String(getContentAsBytes(), file.getCharset(vcs.project)).removePrefix("\uFEFF")
 
     override fun getFile(): FilePath = file
 

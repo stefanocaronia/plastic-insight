@@ -24,7 +24,11 @@ jobs:
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Rider SDK artifacts are several GiB; reuse existing cache entries without
+          # uploading a new multi-GiB cache after every release build.
+          cache-read-only: true
 
       - name: Validate release tag
         if: startsWith(github.ref, 'refs/tags/')

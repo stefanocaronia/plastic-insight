@@ -160,7 +160,7 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
     }
 
     internal fun currentCancellation(): PlasticCancellation {
-        val indicator = ProgressManager.getInstanceOrNull()?.progressIndicator
+        val indicator = ProgressManager.getInstance().progressIndicator
         return PlasticCancellation { project.isDisposed || indicator?.isCanceled == true }
     }
 
@@ -251,7 +251,7 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
     companion object {
         const val NAME: String = "Plastic Insight"
         const val DISPLAY_NAME: String = "Plastic Insight"
-        val KEY: VcsKey = VcsKey(NAME)
+        val KEY: VcsKey = createKey(NAME)
     }
 }
 
