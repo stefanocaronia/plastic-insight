@@ -53,6 +53,20 @@ class PlasticChangeProviderTest {
     }
 
     @Test
+    fun `controlled move wins over a private exact probe for the same destination`() {
+        val destination = ROOT.resolve("Selection").resolve("file.cs")
+        val private = change(PlasticStatusCode.PRIVATE, path = destination)
+        val moved = change(
+            PlasticStatusCode.LOCALLY_MOVED,
+            path = destination,
+            oldPath = ROOT.resolve("file.cs"),
+        )
+
+        assertEquals(moved, preferControlledChange(destination, private, listOf(moved)))
+        assertEquals(private, preferControlledChange(destination, private, emptyList()))
+    }
+
+    @Test
     fun `exact status plan is deterministic and deduplicated`() {
         val source = ROOT.resolve("Source")
         val first = source.resolve("B.cs")
@@ -102,14 +116,15 @@ class PlasticChangeProviderTest {
 
     private fun change(
         vararg codes: PlasticStatusCode,
+        path: Path = ROOT.resolve("file.cs"),
         oldPath: Path? = null,
     ): PlasticPendingChange =
         PlasticPendingChange(
             codes = codes.toSet(),
-            path = ROOT.resolve("file.cs"),
+            path = path,
             oldPath = oldPath,
             isDirectory = false,
-            revisionId = 7,
+            revisionId = 7L.takeUnless { PlasticStatusCode.PRIVATE in codes },
             similarityPercent = oldPath?.let { 100.0 },
         )
 

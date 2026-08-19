@@ -48,7 +48,8 @@ internal class PlasticChangeProvider(
             .filterNot(FilePath::isNonLocal)
             .mapNotNull(::localPath)
             .toList()
-        val reported = HashSet<String>()
+        val reportedPaths = HashSet<Path>()
+        val rootFallbacks = HashMap<Path, PlasticStatusSnapshot?>()
 
         val scopes = planStatusScopes(
             explicitPaths = explicitCandidates,
@@ -56,6 +57,12 @@ internal class PlasticChangeProvider(
             contentRoots = contentRoots,
             everythingDirty = dirtyScope.wasEveryThingDirty(),
         )
+        fun rootFallback(snapshot: PlasticStatusSnapshot): PlasticStatusSnapshot? {
+            val root = snapshot.workspace.root.normalize()
+            if (rootFallbacks.containsKey(root)) return rootFallbacks[root]
+            return vcs.loadStatus(root, cancellation).also { rootFallbacks[root] = it }
+        }
+
         for (scope in scopes) {
             progress.checkCanceled()
             val snapshot = vcs.loadStatus(
@@ -63,14 +70,27 @@ internal class PlasticChangeProvider(
                 cancellation = cancellation,
                 includePrivateFiles = !scope.recursive,
             ) ?: continue
+            if (scope.recursive && scope.path.normalize() == snapshot.workspace.root.normalize()) {
+                rootFallbacks[snapshot.workspace.root.normalize()] = snapshot
+            }
             for (change in snapshot.status.changes) {
-                if (!scope.contains(change) || change.isDirectory || !reported.add(change.identity())) continue
+                if (!scope.contains(change) || change.isDirectory) continue
+                if (reportedPaths.contains(change.path.normalize())) continue
                 progress.checkCanceled()
-                if (change.isRiderUnversioned()) {
-                    builder.processUnversionedFile(VcsUtil.getFilePath(change.path, false))
+                // Exact move destinations can look private; controlled status is authoritative.
+                val fallback = if (change.isRiderUnversioned()) rootFallback(snapshot) else null
+                val preferred = fallback?.let { status ->
+                    preferControlledChange(change.path, change, status.status.changes)
+                } ?: change
+                val preferredSnapshot = if (preferred === change) snapshot else requireNotNull(fallback)
+                if (!reportedPaths.add(preferred.path.normalize())) continue
+                if (preferred.isRiderUnversioned()) {
+                    builder.processUnversionedFile(VcsUtil.getFilePath(preferred.path, false))
                     continue
                 }
-                toRiderChange(vcs, snapshot, change)?.let { builder.processChange(it, PlasticVcs.KEY) }
+                toRiderChange(vcs, preferredSnapshot, preferred)?.let {
+                    builder.processChange(it, PlasticVcs.KEY)
+                }
             }
         }
     }
@@ -109,6 +129,19 @@ internal fun PlasticPendingChange.riderKind(): PlasticRiderChangeKind? =
 internal fun PlasticPendingChange.isRiderUnversioned(): Boolean =
     !isDirectory && PlasticStatusCode.PRIVATE in codes
 
+internal fun preferControlledChange(
+    scope: Path,
+    exactChange: PlasticPendingChange,
+    controlledChanges: Iterable<PlasticPendingChange>,
+): PlasticPendingChange =
+    if (!exactChange.isRiderUnversioned()) {
+        exactChange
+    } else {
+        controlledChanges.firstOrNull { change ->
+            !change.isRiderUnversioned() && change.matches(scope)
+        } ?: exactChange
+    }
+
 internal data class PlasticStatusScope(
     val path: Path,
     val recursive: Boolean,
@@ -146,7 +179,9 @@ internal fun planStatusScopes(
     dominantRecursive.forEach { path -> scopes.add(PlasticStatusScope(path, recursive = true)) }
     // Exact probes preserve bounded private-file detection inside coalesced controlled scopes.
     exactProbes.forEach { path -> scopes.add(PlasticStatusScope(path, recursive = false)) }
-    return scopes.sortedBy { scope -> pathSortKey(scope.path) }
+    return scopes.sortedWith(
+        compareBy<PlasticStatusScope>({ !it.recursive }, { pathSortKey(it.path) }),
+    )
 }
 
 private fun normalizedPaths(paths: Iterable<Path>): List<Path> =
@@ -165,9 +200,6 @@ internal fun PlasticPendingChange.matches(scope: Path): Boolean {
     val normalizedScope = scope.normalize()
     return path.normalize() == normalizedScope || oldPath?.normalize() == normalizedScope
 }
-
-private fun PlasticPendingChange.identity(): String =
-    "${oldPath?.normalize()?.toString().orEmpty()}\u0000${path.normalize()}"
 
 private fun toRiderChange(
     vcs: PlasticVcs,
