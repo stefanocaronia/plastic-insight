@@ -23,7 +23,15 @@ internal class PlasticDiffProvider(
     override fun getCurrentRevision(file: VirtualFile): VcsRevisionNumber? =
         safely {
             if (file.isDirectory || vcs.isDispatchThread()) return@safely null
-            val snapshot = vcs.loadStatus(file.localPath(), vcs.currentCancellation()) ?: return@safely null
+            val path = file.localPath()
+            val snapshot = vcs.loadStatus(path, vcs.currentCancellation(), includePrivateFiles = true)
+                ?: return@safely null
+            if (snapshot.status.changes.any { change ->
+                    change.matches(path) && PlasticStatusCode.PRIVATE in change.codes
+                }
+            ) {
+                return@safely null
+            }
             VcsRevisionNumber.Long(snapshot.status.workspaceChangeset)
         }
 
@@ -48,12 +56,17 @@ internal class PlasticDiffProvider(
     ): ContentRevision? {
         if (selectedFile.isDirectory || vcs.isDispatchThread()) return null
         val selectedPath = selectedFile.localPath()
-        val snapshot = vcs.loadStatus(selectedPath, vcs.currentCancellation()) ?: return null
+        val snapshot = vcs.loadStatus(selectedPath, vcs.currentCancellation(), includePrivateFiles = true) ?: return null
         val currentNumber = VcsRevisionNumber.Long(snapshot.status.workspaceChangeset)
         if (expectedRevision != null && expectedRevision != currentNumber) return null
 
         val pendingChange = snapshot.status.changes.firstOrNull { change -> change.matches(selectedPath) }
-        if (pendingChange?.codes?.contains(PlasticStatusCode.ADDED) == true) return null
+        if (pendingChange?.codes?.any { code ->
+                code == PlasticStatusCode.ADDED || code == PlasticStatusCode.PRIVATE
+            } == true
+        ) {
+            return null
+        }
         val basePath = pendingChange?.oldPath ?: selectedPath
         return PlasticBaseContentRevision(
             vcs = vcs,

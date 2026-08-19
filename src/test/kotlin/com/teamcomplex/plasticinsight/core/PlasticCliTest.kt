@@ -81,6 +81,21 @@ class PlasticCliTest {
     }
 
     @Test
+    fun `constrained status forwards the exact private-file option`() {
+        val runner = RecordingRunner(success())
+        val cli = PlasticCli(runner)
+        val workspaceRoot = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
+
+        cli.constrainedStatus(
+            workspaceRoot = workspaceRoot,
+            scope = workspaceRoot.resolve("new.txt"),
+            includePrivateFiles = true,
+        )
+
+        assertTrue("--private" in requireNotNull(runner.lastInvocation).arguments)
+    }
+
+    @Test
     fun `workspace discovery executes the dedicated command builder invocation`() {
         val runner = RecordingRunner(success())
         val cli = PlasticCli(runner, executable = "cm.exe")

@@ -23,7 +23,9 @@ class PlasticGatewayIntegrationTest {
             )
             val workspace = assertIs<PlasticWorkspaceLookup.Found>(lookup.value).workspace
 
-            val status = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(it.status(workspace, file))
+            val status = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
+                it.status(workspace, file, includePrivateFiles = true),
+            )
             val workspaceStatus = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
                 it.status(workspace, workspace.root),
             )

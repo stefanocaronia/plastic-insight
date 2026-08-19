@@ -107,6 +107,7 @@ internal class DefaultPlasticGateway(
         workspace: PlasticWorkspace,
         scope: Path,
         cancellation: PlasticCancellation,
+        includePrivateFiles: Boolean,
     ): PlasticResult<PlasticWorkspaceStatus> {
         disposedFailure(PlasticOperation.STATUS)?.let { return it }
         cancellationPrecheck(PlasticOperation.STATUS, cancellation)?.let { return it }
@@ -115,9 +116,10 @@ internal class DefaultPlasticGateway(
         val token = combinedCancellation(cancellation)
         val execution = runCommand(PlasticOperation.STATUS) {
             if (normalizedScope == normalizedRoot) {
+                require(!includePrivateFiles) { "Private files cannot be requested for a workspace-root status." }
                 cli.workspaceStatus(normalizedRoot, token)
             } else {
-                cli.constrainedStatus(normalizedRoot, normalizedScope, token)
+                cli.constrainedStatus(normalizedRoot, normalizedScope, token, includePrivateFiles)
             }
         }
         val result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)

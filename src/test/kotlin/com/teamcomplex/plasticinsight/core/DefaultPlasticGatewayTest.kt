@@ -124,6 +124,31 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
+    fun `private status is bounded to a strict child scope`() {
+        val file = sampleRoot.resolve("new.cs")
+        val output = (
+            "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D\r\n" +
+                "\u001EPR\u001F$file\u001FFalse\u001F-1\u001FNO_MERGES\u001D"
+            ).toByteArray()
+        val runner = RecordingRunner(success(output))
+        val gateway = gateway(runner)
+
+        val result = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
+            gateway.status(sampleWorkspace, file, includePrivateFiles = true),
+        )
+
+        assertEquals(setOf(PlasticStatusCode.PRIVATE), result.value.changes.single().codes)
+        assertTrue("--private" in runner.invocations.single().arguments)
+
+        val rootRunner = RecordingRunner()
+        val rootResult = assertIs<PlasticResult.Failure>(
+            gateway(rootRunner).status(sampleWorkspace, sampleRoot, includePrivateFiles = true),
+        )
+        assertIs<PlasticFailure.ExecutionFailed>(rootResult.reason)
+        assertTrue(rootRunner.invocations.isEmpty())
+    }
+
+    @Test
     fun `base content uses explicit path and workspace changeset while caching defensive copies`() {
         val raw = byteArrayOf(1, 2, 3, 4)
         val expected = raw.copyOf()

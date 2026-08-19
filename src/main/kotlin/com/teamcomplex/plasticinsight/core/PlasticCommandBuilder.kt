@@ -42,6 +42,7 @@ class PlasticCommandBuilder(
     fun constrainedStatus(
         workspaceRoot: Path,
         scope: Path,
+        includePrivateFiles: Boolean = false,
     ): PlasticInvocation {
         require(workspaceRoot.isAbsolute) { "The Plastic workspace root must be absolute." }
         require(scope.isAbsolute) { "The Plastic status scope must be absolute." }
@@ -56,6 +57,7 @@ class PlasticCommandBuilder(
             workspaceRoot = normalizedRoot,
             scope = normalizedScope,
             outputLimitBytes = textOutputLimitBytes,
+            includePrivateFiles = includePrivateFiles,
         )
     }
 
@@ -67,6 +69,7 @@ class PlasticCommandBuilder(
             workspaceRoot = normalizedRoot,
             scope = normalizedRoot,
             outputLimitBytes = minOf(textOutputLimitBytes, WORKSPACE_STATUS_OUTPUT_LIMIT_BYTES),
+            includePrivateFiles = false,
         )
     }
 
@@ -74,23 +77,25 @@ class PlasticCommandBuilder(
         workspaceRoot: Path,
         scope: Path,
         outputLimitBytes: Int,
+        includePrivateFiles: Boolean,
     ): PlasticInvocation =
         PlasticInvocation(
             executable = executable,
-            arguments = listOf(
-                "status",
-                scope.toString(),
-                "--machinereadable",
-                "--includeRevId",
-                "--iscochanged",
-                "--controlledchanged",
-                "--changed",
-                "--localdeleted",
-                "--localmoved",
-                "--fieldseparator=$UNIT_SEPARATOR",
-                "--startlineseparator=$RECORD_SEPARATOR",
-                "--endlineseparator=$GROUP_SEPARATOR",
-            ),
+            arguments = buildList {
+                add("status")
+                add(scope.toString())
+                add("--machinereadable")
+                add("--includeRevId")
+                add("--iscochanged")
+                add("--controlledchanged")
+                add("--changed")
+                add("--localdeleted")
+                add("--localmoved")
+                if (includePrivateFiles) add("--private")
+                add("--fieldseparator=$UNIT_SEPARATOR")
+                add("--startlineseparator=$RECORD_SEPARATOR")
+                add("--endlineseparator=$GROUP_SEPARATOR")
+            },
             workingDirectory = workspaceRoot,
             timeout = timeout,
             standardOutputLimitBytes = outputLimitBytes,

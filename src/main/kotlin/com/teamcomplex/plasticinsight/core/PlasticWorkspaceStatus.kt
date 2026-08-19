@@ -14,6 +14,7 @@ enum class PlasticStatusCode(
     LOCALLY_DELETED("LD"),
     MOVED("MV"),
     LOCALLY_MOVED("LM"),
+    PRIVATE("PR"),
     ;
 
     companion object {

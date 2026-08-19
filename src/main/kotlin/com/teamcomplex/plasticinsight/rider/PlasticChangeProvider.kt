@@ -58,10 +58,18 @@ internal class PlasticChangeProvider(
         )
         for (scope in scopes) {
             progress.checkCanceled()
-            val snapshot = vcs.loadStatus(scope.path, cancellation) ?: continue
+            val snapshot = vcs.loadStatus(
+                scope = scope.path,
+                cancellation = cancellation,
+                includePrivateFiles = !scope.recursive,
+            ) ?: continue
             for (change in snapshot.status.changes) {
                 if (!scope.contains(change) || change.isDirectory || !reported.add(change.identity())) continue
                 progress.checkCanceled()
+                if (change.isRiderUnversioned()) {
+                    builder.processUnversionedFile(VcsUtil.getFilePath(change.path, false))
+                    continue
+                }
                 toRiderChange(vcs, snapshot, change)?.let { builder.processChange(it, PlasticVcs.KEY) }
             }
         }
@@ -98,6 +106,9 @@ internal fun PlasticPendingChange.riderKind(): PlasticRiderChangeKind? =
         else -> null
     }
 
+internal fun PlasticPendingChange.isRiderUnversioned(): Boolean =
+    !isDirectory && PlasticStatusCode.PRIVATE in codes
+
 internal data class PlasticStatusScope(
     val path: Path,
     val recursive: Boolean,
@@ -130,11 +141,11 @@ internal fun planStatusScopes(
             selected
         }
 
-    val scopes = ArrayList<PlasticStatusScope>(dominantRecursive.size + exact.size)
+    val exactProbes = if (broadRefresh) exact.take(MAX_EXACT_STATUS_SCOPES) else exact
+    val scopes = ArrayList<PlasticStatusScope>(dominantRecursive.size + exactProbes.size)
     dominantRecursive.forEach { path -> scopes.add(PlasticStatusScope(path, recursive = true)) }
-    exact
-        .filter { path -> dominantRecursive.none(path::startsWith) }
-        .forEach { path -> scopes.add(PlasticStatusScope(path, recursive = false)) }
+    // Exact probes preserve bounded private-file detection inside coalesced controlled scopes.
+    exactProbes.forEach { path -> scopes.add(PlasticStatusScope(path, recursive = false)) }
     return scopes.sortedBy { scope -> pathSortKey(scope.path) }
 }
 

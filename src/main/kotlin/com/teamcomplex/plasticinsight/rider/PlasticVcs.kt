@@ -55,6 +55,7 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
     internal fun loadStatus(
         scope: Path,
         cancellation: PlasticCancellation,
+        includePrivateFiles: Boolean = false,
     ): PlasticStatusSnapshot? {
         requireBackgroundThread()
         val normalizedScope = scope.toAbsolutePath().normalize()
@@ -66,7 +67,10 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
         }
         if (PlasticRootChecker.isAdministrativePath(workspace.root, normalizedScope)) return null
 
-        val status = unwrap(gateway.status(workspace, normalizedScope, cancellation), "status")
+        val status = unwrap(
+            gateway.status(workspace, normalizedScope, cancellation, includePrivateFiles),
+            "status",
+        )
         return PlasticStatusSnapshot(workspace, status)
     }
 

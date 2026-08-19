@@ -45,6 +45,14 @@ class PlasticChangeProviderTest {
     }
 
     @Test
+    fun `private files map only to Rider unversioned state`() {
+        val private = change(PlasticStatusCode.PRIVATE)
+
+        assertTrue(private.isRiderUnversioned())
+        assertNull(private.riderKind())
+    }
+
+    @Test
     fun `exact status plan is deterministic and deduplicated`() {
         val source = ROOT.resolve("Source")
         val first = source.resolve("B.cs")
@@ -57,13 +65,14 @@ class PlasticChangeProviderTest {
     }
 
     @Test
-    fun `recursive root dominates nested scopes and exact files`() {
+    fun `recursive root keeps an exact private-file probe`() {
         val source = ROOT.resolve("Source")
+        val file = source.resolve("File.cs")
 
         assertEquals(
-            listOf(PlasticStatusScope(ROOT, true)),
+            listOf(PlasticStatusScope(ROOT, true), PlasticStatusScope(file, false)),
             planStatusScopes(
-                explicitPaths = listOf(source.resolve("File.cs")),
+                explicitPaths = listOf(file),
                 recursivePaths = listOf(ROOT, source),
                 contentRoots = listOf(source),
             ),
@@ -76,7 +85,8 @@ class PlasticChangeProviderTest {
         val files = (1..5).map { index -> source.resolve("File$index.cs") }
 
         assertEquals(
-            listOf(PlasticStatusScope(source, true)),
+            listOf(PlasticStatusScope(source, true)) +
+                files.take(4).map { file -> PlasticStatusScope(file, false) },
             planStatusScopes(explicitPaths = files, contentRoots = listOf(source)),
         )
     }

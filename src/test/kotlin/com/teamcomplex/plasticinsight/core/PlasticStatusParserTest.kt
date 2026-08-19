@@ -66,6 +66,17 @@ class PlasticStatusParserTest {
     }
 
     @Test
+    fun `parses a private file with no revision`() {
+        val output = record("STATUS", "42", "repository", "server") +
+            record("PR", "C:\\workspace\\new.cs", "False", "-1", "NO_MERGES")
+
+        val change = parser.parse(output).changes.single()
+
+        assertEquals(setOf(PlasticStatusCode.PRIVATE), change.codes)
+        assertNull(change.revisionId)
+    }
+
+    @Test
     fun `rejects output without record framing`() {
         assertFailsWith<PlasticParseException> {
             parser.parse("STATUS\u001F42\u001Frepository\u001Fserver")

@@ -105,6 +105,21 @@ class PlasticCommandBuilderTest {
     }
 
     @Test
+    fun `constrained status can include private files only for its exact scope`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val file = workspaceRoot.resolve("new file.cs")
+
+        val invocation = PlasticCommandBuilder().constrainedStatus(
+            workspaceRoot = workspaceRoot,
+            scope = file,
+            includePrivateFiles = true,
+        )
+
+        assertTrue("--private" in invocation.arguments)
+        assertEquals(file.toString(), invocation.arguments[1])
+    }
+
+    @Test
     fun `constrained status rejects a relative workspace root`() {
         val builder = PlasticCommandBuilder()
 

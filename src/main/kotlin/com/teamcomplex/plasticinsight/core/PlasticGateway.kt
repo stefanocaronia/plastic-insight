@@ -39,6 +39,7 @@ interface PlasticGateway : AutoCloseable {
         workspace: PlasticWorkspace,
         scope: Path,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
+        includePrivateFiles: Boolean = false,
     ): PlasticResult<PlasticWorkspaceStatus>
 
     fun baseContent(
