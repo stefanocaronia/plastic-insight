@@ -110,9 +110,15 @@ internal class DefaultPlasticGateway(
     ): PlasticResult<PlasticWorkspaceStatus> {
         disposedFailure(PlasticOperation.STATUS)?.let { return it }
         cancellationPrecheck(PlasticOperation.STATUS, cancellation)?.let { return it }
+        val normalizedRoot = workspace.root.normalize()
+        val normalizedScope = scope.normalize()
         val token = combinedCancellation(cancellation)
         val execution = runCommand(PlasticOperation.STATUS) {
-            cli.constrainedStatus(workspace.root, scope, token)
+            if (normalizedScope == normalizedRoot) {
+                cli.workspaceStatus(normalizedRoot, token)
+            } else {
+                cli.constrainedStatus(normalizedRoot, normalizedScope, token)
+            }
         }
         val result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
         processFailure(PlasticOperation.STATUS, result.state())?.let { return it }

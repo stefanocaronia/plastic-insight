@@ -65,7 +65,6 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
             PlasticWorkspaceLookup.NotFound -> return null
         }
         if (PlasticRootChecker.isAdministrativePath(workspace.root, normalizedScope)) return null
-        if (normalizedScope == workspace.root.normalize()) return null
 
         val status = unwrap(gateway.status(workspace, normalizedScope, cancellation), "status")
         return PlasticStatusSnapshot(workspace, status)

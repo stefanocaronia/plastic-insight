@@ -55,6 +55,17 @@ class PlasticStatusParserTest {
     }
 
     @Test
+    fun `accepts CLI line breaks between framed records`() {
+        val output = record("STATUS", "42", "repository", "server") + "\r\n" +
+            record("CH", "C:\\workspace\\file.cs", "False", "1", "NO_MERGES") + "\r\n"
+
+        val status = parser.parse(output)
+
+        assertEquals(1, status.changes.size)
+        assertEquals(Path.of("C:\\workspace\\file.cs"), status.changes.single().path)
+    }
+
+    @Test
     fun `rejects output without record framing`() {
         assertFailsWith<PlasticParseException> {
             parser.parse("STATUS\u001F42\u001Frepository\u001Fserver")

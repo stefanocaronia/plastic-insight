@@ -67,6 +67,20 @@ class PlasticCliTest {
     }
 
     @Test
+    fun `workspace status executes the dedicated filtered root invocation`() {
+        val runner = RecordingRunner(success())
+        val cli = PlasticCli(runner)
+        val workspaceRoot = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
+
+        cli.workspaceStatus(workspaceRoot)
+
+        assertEquals("status", runner.lastInvocation?.arguments?.first())
+        assertEquals(workspaceRoot.toString(), runner.lastInvocation?.arguments?.get(1))
+        assertEquals(1024 * 1024, runner.lastInvocation?.standardOutputLimitBytes)
+        assertTrue("--private" !in requireNotNull(runner.lastInvocation).arguments)
+    }
+
+    @Test
     fun `workspace discovery executes the dedicated command builder invocation`() {
         val runner = RecordingRunner(success())
         val cli = PlasticCli(runner, executable = "cm.exe")

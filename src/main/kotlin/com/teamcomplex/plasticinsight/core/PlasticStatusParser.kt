@@ -20,6 +20,10 @@ class PlasticStatusParser {
         val changes = ArrayList<PlasticPendingChange>()
         while (cursor < outputEnd) {
             cancellationCheck()
+            while (cursor < outputEnd && (output[cursor] == '\r' || output[cursor] == '\n')) {
+                cursor++
+            }
+            if (cursor == outputEnd) break
             if (output[cursor] != RECORD_SEPARATOR) {
                 throw PlasticParseException("Plastic status contains an unframed record.")
             }

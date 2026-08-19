@@ -18,7 +18,7 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.util.Locale
 
-/** Translates exact dirty files into native Rider changes. */
+/** Translates bounded dirty scopes into native Rider changes. */
 internal class PlasticChangeProvider(
     private val vcs: PlasticVcs,
 ) : ChangeProvider {
@@ -30,19 +30,37 @@ internal class PlasticChangeProvider(
     ) {
         ApplicationManager.getApplication().assertIsNonDispatchThread()
         val cancellation = PlasticCancellation { progress.isCanceled || vcs.project.isDisposed }
-        val candidates = dirtyScope.dirtyFilesNoExpand
+        val explicitCandidates = dirtyScope.dirtyFilesNoExpand
             .asSequence()
             .filterNot(FilePath::isDirectory)
             .filterNot(FilePath::isNonLocal)
             .mapNotNull(::localPath)
             .toList()
+        val recursiveCandidates = dirtyScope.recursivelyDirtyDirectories
+            .asSequence()
+            .filterNot(FilePath::isNonLocal)
+            .mapNotNull(::localPath)
+            .toList()
+        val contentRoots = dirtyScope.affectedContentRoots
+            .asSequence()
+            .filter { file -> file.isValid && file.isDirectory }
+            .map { file -> VcsUtil.getFilePath(file) }
+            .filterNot(FilePath::isNonLocal)
+            .mapNotNull(::localPath)
+            .toList()
         val reported = HashSet<String>()
 
-        for (scope in planDirtyPaths(candidates)) {
+        val scopes = planStatusScopes(
+            explicitPaths = explicitCandidates,
+            recursivePaths = recursiveCandidates,
+            contentRoots = contentRoots,
+            everythingDirty = dirtyScope.wasEveryThingDirty(),
+        )
+        for (scope in scopes) {
             progress.checkCanceled()
-            val snapshot = vcs.loadStatus(scope, cancellation) ?: continue
+            val snapshot = vcs.loadStatus(scope.path, cancellation) ?: continue
             for (change in snapshot.status.changes) {
-                if (!change.matches(scope) || change.isDirectory || !reported.add(change.identity())) continue
+                if (!scope.contains(change) || change.isDirectory || !reported.add(change.identity())) continue
                 progress.checkCanceled()
                 toRiderChange(vcs, snapshot, change)?.let { builder.processChange(it, PlasticVcs.KEY) }
             }
@@ -80,13 +98,57 @@ internal fun PlasticPendingChange.riderKind(): PlasticRiderChangeKind? =
         else -> null
     }
 
-internal fun planDirtyPaths(paths: Iterable<Path>): List<Path> =
+internal data class PlasticStatusScope(
+    val path: Path,
+    val recursive: Boolean,
+) {
+    fun contains(change: PlasticPendingChange): Boolean =
+        if (recursive) {
+            change.path.normalize().startsWith(path) || change.oldPath?.normalize()?.startsWith(path) == true
+        } else {
+            change.matches(path)
+        }
+}
+
+internal fun planStatusScopes(
+    explicitPaths: Iterable<Path>,
+    recursivePaths: Iterable<Path> = emptyList(),
+    contentRoots: Iterable<Path> = emptyList(),
+    everythingDirty: Boolean = false,
+): List<PlasticStatusScope> {
+    val exact = normalizedPaths(explicitPaths)
+    val recursive = normalizedPaths(recursivePaths)
+    val roots = normalizedPaths(contentRoots)
+    val broadRefresh = everythingDirty ||
+        recursive.size > MAX_EXACT_STATUS_SCOPES ||
+        exact.size > MAX_EXACT_STATUS_SCOPES
+    val recursiveCandidates = if (broadRefresh && roots.isNotEmpty()) recursive + roots else recursive
+    val dominantRecursive = recursiveCandidates
+        .sortedWith(compareBy<Path>({ it.nameCount }, ::pathSortKey))
+        .fold(mutableListOf<Path>()) { selected, candidate ->
+            if (selected.none(candidate::startsWith)) selected.add(candidate)
+            selected
+        }
+
+    val scopes = ArrayList<PlasticStatusScope>(dominantRecursive.size + exact.size)
+    dominantRecursive.forEach { path -> scopes.add(PlasticStatusScope(path, recursive = true)) }
+    exact
+        .filter { path -> dominantRecursive.none(path::startsWith) }
+        .forEach { path -> scopes.add(PlasticStatusScope(path, recursive = false)) }
+    return scopes.sortedBy { scope -> pathSortKey(scope.path) }
+}
+
+private fun normalizedPaths(paths: Iterable<Path>): List<Path> =
     paths.asSequence()
         .filter(Path::isAbsolute)
         .map(Path::normalize)
         .distinct()
-        .sortedBy { path -> path.toString().lowercase(Locale.ROOT) }
+        .sortedBy(::pathSortKey)
         .toList()
+
+private fun pathSortKey(path: Path): String = path.toString().lowercase(Locale.ROOT)
+
+private const val MAX_EXACT_STATUS_SCOPES = 4
 
 internal fun PlasticPendingChange.matches(scope: Path): Boolean {
     val normalizedScope = scope.normalize()

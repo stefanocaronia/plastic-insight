@@ -52,11 +52,34 @@ class PlasticCommandBuilder(
             "The Plastic status scope must be strictly inside the workspace root."
         }
 
-        return PlasticInvocation(
+        return statusInvocation(
+            workspaceRoot = normalizedRoot,
+            scope = normalizedScope,
+            outputLimitBytes = textOutputLimitBytes,
+        )
+    }
+
+    /** Filtered root status for Rider's broad refresh; private files are deliberately excluded. */
+    fun workspaceStatus(workspaceRoot: Path): PlasticInvocation {
+        require(workspaceRoot.isAbsolute) { "The Plastic workspace root must be absolute." }
+        val normalizedRoot = workspaceRoot.normalize()
+        return statusInvocation(
+            workspaceRoot = normalizedRoot,
+            scope = normalizedRoot,
+            outputLimitBytes = minOf(textOutputLimitBytes, WORKSPACE_STATUS_OUTPUT_LIMIT_BYTES),
+        )
+    }
+
+    private fun statusInvocation(
+        workspaceRoot: Path,
+        scope: Path,
+        outputLimitBytes: Int,
+    ): PlasticInvocation =
+        PlasticInvocation(
             executable = executable,
             arguments = listOf(
                 "status",
-                normalizedScope.toString(),
+                scope.toString(),
                 "--machinereadable",
                 "--includeRevId",
                 "--iscochanged",
@@ -68,12 +91,11 @@ class PlasticCommandBuilder(
                 "--startlineseparator=$RECORD_SEPARATOR",
                 "--endlineseparator=$GROUP_SEPARATOR",
             ),
-            workingDirectory = normalizedRoot,
+            workingDirectory = workspaceRoot,
             timeout = timeout,
-            standardOutputLimitBytes = textOutputLimitBytes,
+            standardOutputLimitBytes = outputLimitBytes,
             standardErrorLimitBytes = errorOutputLimitBytes,
         )
-    }
 
     fun workspaceBaseline(
         workspaceRoot: Path,
@@ -218,6 +240,7 @@ class PlasticCommandBuilder(
     private companion object {
         const val MAX_HISTORY_LIMIT = 1000
         const val DISCOVERY_OUTPUT_LIMIT_BYTES = 64 * 1024
+        const val WORKSPACE_STATUS_OUTPUT_LIMIT_BYTES = 1024 * 1024
         const val DEFAULT_TEXT_OUTPUT_LIMIT_BYTES = 8 * 1024 * 1024
         const val DEFAULT_BINARY_OUTPUT_LIMIT_BYTES = 32 * 1024 * 1024
         const val DEFAULT_ERROR_OUTPUT_LIMIT_BYTES = 256 * 1024

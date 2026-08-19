@@ -5,6 +5,7 @@ import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class PlasticCommandBuilderTest {
     @Test
@@ -84,6 +85,23 @@ class PlasticCommandBuilderTest {
         )
         assertEquals(workspaceRoot, invocation.workingDirectory)
         assertEquals(Duration.ofSeconds(4), invocation.timeout)
+    }
+
+    @Test
+    fun `workspace status uses the filtered root contract with a tighter output bound`() {
+        val workspaceRoot = absoluteTestPath("Sample Workspace")
+        val invocation = PlasticCommandBuilder(textOutputLimitBytes = 8 * 1024 * 1024)
+            .workspaceStatus(workspaceRoot)
+
+        assertEquals("status", invocation.arguments.first())
+        assertEquals(workspaceRoot.toString(), invocation.arguments[1])
+        assertEquals(workspaceRoot, invocation.workingDirectory)
+        assertEquals(1024 * 1024, invocation.standardOutputLimitBytes)
+        assertTrue("--controlledchanged" in invocation.arguments)
+        assertTrue("--changed" in invocation.arguments)
+        assertTrue("--localdeleted" in invocation.arguments)
+        assertTrue("--localmoved" in invocation.arguments)
+        assertTrue("--private" !in invocation.arguments)
     }
 
     @Test

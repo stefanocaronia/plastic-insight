@@ -104,6 +104,26 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
+    fun `workspace-root status uses the bounded controlled-change contract`() {
+        val output = (
+            "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D" +
+                "\u001ECH\u001F${sampleRoot.resolve("file.cs")}\u001FFalse\u001F7\u001FNO_MERGES\u001D"
+            ).toByteArray()
+        val runner = RecordingRunner(success(output))
+        val gateway = gateway(runner)
+
+        val result = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
+            gateway.status(sampleWorkspace, sampleRoot),
+        )
+
+        assertEquals(1, result.value.changes.size)
+        val invocation = runner.invocations.single()
+        assertEquals(sampleRoot.toString(), invocation.arguments[1])
+        assertEquals(1024 * 1024, invocation.standardOutputLimitBytes)
+        assertTrue("--private" !in invocation.arguments)
+    }
+
+    @Test
     fun `base content uses explicit path and workspace changeset while caching defensive copies`() {
         val raw = byteArrayOf(1, 2, 3, 4)
         val expected = raw.copyOf()

@@ -35,6 +35,12 @@ class PlasticCli(
     ): PlasticTextResult =
         execute(commandBuilder.constrainedStatus(workspaceRoot, scope), cancellation)
 
+    fun workspaceStatus(
+        workspaceRoot: Path,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticTextResult =
+        execute(commandBuilder.workspaceStatus(workspaceRoot), cancellation)
+
     fun workspaceFromPath(
         workingDirectory: Path,
         targetPath: Path,

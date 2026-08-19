@@ -6,6 +6,7 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class PlasticChangeProviderTest {
     @Test
@@ -44,15 +45,49 @@ class PlasticChangeProviderTest {
     }
 
     @Test
-    fun `dirty path plan is deterministic and deduplicated`() {
+    fun `exact status plan is deterministic and deduplicated`() {
         val source = ROOT.resolve("Source")
         val first = source.resolve("B.cs")
         val second = source.resolve("A.cs")
 
         assertEquals(
-            listOf(second, first),
-            planDirtyPaths(listOf(first, second, first)),
+            listOf(PlasticStatusScope(second, false), PlasticStatusScope(first, false)),
+            planStatusScopes(listOf(first, second, first)),
         )
+    }
+
+    @Test
+    fun `recursive root dominates nested scopes and exact files`() {
+        val source = ROOT.resolve("Source")
+
+        assertEquals(
+            listOf(PlasticStatusScope(ROOT, true)),
+            planStatusScopes(
+                explicitPaths = listOf(source.resolve("File.cs")),
+                recursivePaths = listOf(ROOT, source),
+                contentRoots = listOf(source),
+            ),
+        )
+    }
+
+    @Test
+    fun `many exact files coalesce to the affected content root`() {
+        val source = ROOT.resolve("Source")
+        val files = (1..5).map { index -> source.resolve("File$index.cs") }
+
+        assertEquals(
+            listOf(PlasticStatusScope(source, true)),
+            planStatusScopes(explicitPaths = files, contentRoots = listOf(source)),
+        )
+    }
+
+    @Test
+    fun `recursive scope accepts both current and old moved paths`() {
+        val source = ROOT.resolve("Source")
+        val moved = change(PlasticStatusCode.MOVED, oldPath = source.resolve("old.cs"))
+
+        assertTrue(PlasticStatusScope(ROOT, true).contains(moved))
+        assertTrue(PlasticStatusScope(source.resolve("old.cs"), false).contains(moved))
     }
 
     private fun change(
