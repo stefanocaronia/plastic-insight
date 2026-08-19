@@ -14,6 +14,8 @@
         </ul>
         <p>This is a lightweight, inspector-first integration, not a complete Plastic client. Check-in, update, switch, merge, branches, shelves, locks, and administration remain in the Plastic GUI or CLI.</p>
         <p>Requires Windows, Rider 2026.2, and the Plastic <code>cm.exe</code> CLI.</p>
+        <p><b>Independent and unofficial:</b> Plastic Insight is not sponsored by, affiliated with, endorsed by, or maintained by Unity Technologies or its affiliates, or by JetBrains s.r.o.</p>
+        <p>Unity, Unity Version Control, and Plastic SCM are trademarks or registered trademarks of Unity Technologies or its affiliates in the U.S. and elsewhere. JetBrains and JetBrains Rider are trademarks of JetBrains s.r.o. All product names and trademarks belong to their respective owners.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

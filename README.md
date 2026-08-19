@@ -4,6 +4,8 @@
 
 Plastic Insight is a lightweight, inspector-first Rider integration for Unity Version Control / Plastic SCM. It brings the Plastic information needed while coding into Rider without trying to replace the Plastic GUI or become a complete Plastic client.
 
+Plastic Insight is an independent, unofficial project. It is not sponsored by, affiliated with, endorsed by, or maintained by Unity Technologies or its affiliates, or by JetBrains s.r.o.
+
 ## Features
 
 - native added, modified, and deleted line markers in Rider's editor gutter;
@@ -65,3 +67,19 @@ GitHub Actions runs the same tests and plugin verification on every push and pul
 ## Documentation
 
 - [Functional specification](Documentation/FunctionalSpecification.md)
+
+## Unofficial project and trademarks
+
+Plastic Insight is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity, Unity Version Control, and Plastic SCM are trademarks or registered trademarks of Unity Technologies or its affiliates in the U.S. and elsewhere.
+
+Plastic Insight is not affiliated with, endorsed by, sponsored by, or maintained by JetBrains s.r.o. JetBrains and JetBrains Rider are trademarks of JetBrains s.r.o. All product names and trademarks belong to their respective owners.
+
+Plastic Insight uses its own original icon and branding; no Unity or JetBrains logo is included.
+
+## Development transparency
+
+This project was developed with assistance from AI coding tools. Every released change is reviewed, tested, and accepted by the project maintainers, who remain responsible for the software and its distribution.
+
+## License
+
+Plastic Insight is free and open-source software licensed under the [Apache License 2.0](LICENSE). It may be used, modified, and distributed, including commercially, subject to the license terms. The software is provided without warranties; see the license for the complete terms and limitations of liability.

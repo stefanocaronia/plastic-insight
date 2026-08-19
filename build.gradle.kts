@@ -42,6 +42,12 @@ kotlin {
     }
 }
 
+tasks.processResources {
+    from(layout.projectDirectory.file("LICENSE")) {
+        into("META-INF")
+    }
+}
+
 intellijPlatform {
     buildSearchableOptions = false
 
