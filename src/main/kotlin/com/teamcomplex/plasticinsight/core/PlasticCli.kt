@@ -78,6 +78,14 @@ class PlasticCli(
     ): PlasticBinaryResult =
         executeBinary(commandBuilder.fileHistory(workspaceRoot, filePath, limit), cancellation)
 
+    fun fileHistoryForServerSpec(
+        workspaceRoot: Path,
+        itemSpec: String,
+        limit: Int,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticBinaryResult =
+        executeBinary(commandBuilder.fileHistoryForServerSpec(workspaceRoot, itemSpec, limit), cancellation)
+
     fun historicalPathResolution(
         executionDirectory: Path,
         itemId: Long,

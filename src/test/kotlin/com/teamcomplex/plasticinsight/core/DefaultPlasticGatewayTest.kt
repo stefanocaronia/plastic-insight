@@ -264,6 +264,50 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
+    fun `pending move history retries through the old server path and reuses it for expansion`() {
+        val currentPath = sampleRoot.resolve("New Folder").resolve("Moved.cs")
+        val oldPath = sampleRoot.resolve("Old Folder").resolve("Moved.cs")
+        val itemSpec =
+            "serverpath:/Old Folder/Moved.cs#cs:42@Sample Repository@example@cloud"
+        val moveStatus = (
+            "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D" +
+                "\u001ELM\u001F100%\u001F$oldPath\u001F$currentPath\u001FFalse\u001F501\u001FNO_MERGES\u001D"
+            ).toByteArray()
+        val history = fixture("/fixtures/history/representative.xml")
+            .toString(Charsets.UTF_8)
+            .replace(
+                "<ItemName>C:\\samples\\Source Ω\\File &amp; Name.cs</ItemName>",
+                "<ItemName>$itemSpec</ItemName>",
+            )
+            .toByteArray()
+        val runner = RecordingRunner(
+            processResult(exitCode = 1),
+            success(moveStatus),
+            success(history),
+            success(history),
+        )
+        val gateway = gateway(runner)
+
+        val initial = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway.fileHistory(sampleWorkspace, currentPath, PlasticHistoryRequest(limit = 2)),
+        )
+        val expanded = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway.fileHistory(sampleWorkspace, currentPath, PlasticHistoryRequest(limit = 4)),
+        )
+
+        assertEquals(2, initial.value.revisions.size)
+        assertEquals(4, expanded.value.revisions.size)
+        assertEquals(listOf("history", "status", "history", "history"), runner.invocations.map { it.arguments[0] })
+        assertEquals(currentPath.toString(), runner.invocations[0].arguments[1])
+        assertEquals(itemSpec, runner.invocations[2].arguments[1])
+        assertEquals(itemSpec, runner.invocations[3].arguments[1])
+        assertEquals(listOf("--limit=3", "--limit=5"), listOf(
+            runner.invocations[2].arguments.last(),
+            runner.invocations[3].arguments.last(),
+        ))
+    }
+
+    @Test
     fun `maximum history view keeps its lookahead inside the parser bound`() {
         val runner = RecordingRunner(success(fixture("/fixtures/history/representative.xml")))
         val gateway = gateway(runner)

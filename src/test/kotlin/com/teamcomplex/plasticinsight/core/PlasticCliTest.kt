@@ -192,6 +192,18 @@ class PlasticCliTest {
     }
 
     @Test
+    fun `file history forwards a server path spec without shell interpretation`() {
+        val runner = RecordingRunner(success())
+        val cli = PlasticCli(runner, executable = "cm.exe")
+        val workspaceRoot = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
+        val itemSpec = "serverpath:/Legacy Folder/Old Name.cs#cs:42@Sample Repository@example@cloud"
+
+        cli.fileHistoryForServerSpec(workspaceRoot, itemSpec, limit = 25)
+
+        assertEquals(itemSpec, runner.lastInvocation?.arguments?.get(1))
+    }
+
+    @Test
     fun `historical content preserves raw revision bytes`() {
         val rawBytes = byteArrayOf(0, 0x80.toByte(), 0xff.toByte())
         val runner = RecordingRunner(success(standardOutput = rawBytes))

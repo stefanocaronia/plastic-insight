@@ -53,7 +53,38 @@ class PlasticGatewayIntegrationTest {
         }
     }
 
+    @Test
+    fun `loads history for an explicitly selected pending move destination`() {
+        val configuredFile = System.getenv(MOVED_TEST_FILE_ENVIRONMENT_VARIABLE)
+        assumeTrue(
+            "$MOVED_TEST_FILE_ENVIRONMENT_VARIABLE is not configured; skipping the opt-in pending-move test.",
+            !configuredFile.isNullOrBlank(),
+        )
+        val file = Path.of(configuredFile).toAbsolutePath().normalize()
+        val gateway = assertIs<PlasticResult.Success<PlasticGateway>>(PlasticGatewayFactory().create()).value
+
+        gateway.use {
+            val lookup = assertIs<PlasticResult.Success<PlasticWorkspaceLookup>>(
+                it.discoverWorkspace(requireNotNull(file.parent)),
+            )
+            val workspace = assertIs<PlasticWorkspaceLookup.Found>(lookup.value).workspace
+            val status = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
+                it.status(workspace, workspace.root),
+            )
+            assertTrue(
+                status.value.changes.any { change -> change.isMove && change.path.normalize() == file },
+                "The selected file is not a pending move destination.",
+            )
+
+            val history = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+                it.fileHistory(workspace, file, PlasticHistoryRequest(limit = 10)),
+            )
+            assertTrue(history.value.revisions.isNotEmpty(), "The moved file unexpectedly has no history.")
+        }
+    }
+
     private companion object {
         const val TEST_FILE_ENVIRONMENT_VARIABLE = "PLASTIC_INSIGHT_TEST_FILE"
+        const val MOVED_TEST_FILE_ENVIRONMENT_VARIABLE = "PLASTIC_INSIGHT_MOVED_TEST_FILE"
     }
 }

@@ -309,6 +309,21 @@ class PlasticCommandBuilderTest {
     }
 
     @Test
+    fun `file history accepts one validated server path spec as a single argument`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val itemSpec = "serverpath:/Legacy Folder/Old Name.cs#cs:42@Sample Repository@example@cloud"
+        val builder = PlasticCommandBuilder(executable = "cm.exe")
+
+        val invocation = builder.fileHistoryForServerSpec(workspaceRoot, itemSpec, limit = 50)
+
+        assertEquals(itemSpec, invocation.arguments[1])
+        assertEquals("--limit=50", invocation.arguments.last())
+        assertFailsWith<IllegalArgumentException> {
+            builder.fileHistoryForServerSpec(workspaceRoot, "serverpath:/old.cs\nstatus", limit = 50)
+        }
+    }
+
+    @Test
     fun `historical path resolution keeps the query in one argument`() {
         val executionDirectory = absoluteTestPath("outside workspace")
         val builder = PlasticCommandBuilder(executable = "cm.exe")

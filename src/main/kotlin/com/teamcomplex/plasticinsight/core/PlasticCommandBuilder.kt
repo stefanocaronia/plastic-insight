@@ -167,6 +167,27 @@ class PlasticCommandBuilder(
             path = filePath,
             pathDescription = "history path",
         )
+        return fileHistoryInvocation(normalizedRoot, normalizedPath.toString(), limit)
+    }
+
+    fun fileHistoryForServerSpec(
+        workspaceRoot: Path,
+        itemSpec: String,
+        limit: Int,
+    ): PlasticInvocation {
+        require(workspaceRoot.isAbsolute) { "The Plastic workspace root must be absolute." }
+        require(itemSpec.startsWith("serverpath:/")) { "The history item spec must be a server path." }
+        require(itemSpec.none { it == '\u0000' || it == '\r' || it == '\n' }) {
+            "The history item spec contains an unsupported character."
+        }
+        return fileHistoryInvocation(workspaceRoot.normalize(), itemSpec, limit)
+    }
+
+    private fun fileHistoryInvocation(
+        normalizedRoot: Path,
+        itemSpec: String,
+        limit: Int,
+    ): PlasticInvocation {
         require(limit in 1..MAX_HISTORY_LIMIT) {
             "The history limit must be between 1 and $MAX_HISTORY_LIMIT."
         }
@@ -175,7 +196,7 @@ class PlasticCommandBuilder(
             executable = executable,
             arguments = listOf(
                 "history",
-                normalizedPath.toString(),
+                itemSpec,
                 "--xml",
                 "--encoding=utf-8",
                 "--moveddeleted",

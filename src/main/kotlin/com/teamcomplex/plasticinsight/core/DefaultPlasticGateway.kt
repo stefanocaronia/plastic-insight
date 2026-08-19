@@ -28,7 +28,7 @@ internal class DefaultPlasticGateway(
         maxWeight = cacheLimits.workspaceBytes,
         weigh = ::workspaceWeight,
     )
-    private val historyCache = BoundedLruCache<HistoryKey, PlasticHistoryPage>(
+    private val historyCache = BoundedLruCache<HistoryKey, CachedHistory>(
         maxEntries = cacheLimits.historyEntries,
         maxWeight = cacheLimits.historyBytes,
         weigh = ::historyWeight,
@@ -224,7 +224,8 @@ internal class DefaultPlasticGateway(
 
         val generation = cacheGeneration.get()
         val key = HistoryKey(workspace.id, normalizedPath.toString(), generation)
-        historyCache[key]?.boundedView(request.limit)?.let { page ->
+        val cached = historyCache[key]
+        cached?.page?.boundedView(request.limit)?.let { page ->
             return success(
                 operation = PlasticOperation.FILE_HISTORY,
                 origin = PlasticDiagnosticOrigin.CACHE,
@@ -233,17 +234,29 @@ internal class DefaultPlasticGateway(
         }
 
         val token = combinedCancellation(cancellation)
-        val execution = runCommand(PlasticOperation.FILE_HISTORY) {
-            cli.fileHistory(workspace.root, normalizedPath, request.limit + 1, token)
+        var query = cached?.query ?: HistoryQuery.WorkspacePath(normalizedPath)
+        var execution = executeFileHistory(workspace, query, request.limit + 1, token)
+        var result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
+        if (query is HistoryQuery.WorkspacePath && result.isPendingMoveCandidate()) {
+            val status = when (val statusResult = status(workspace, workspace.root, token)) {
+                is PlasticResult.Success -> statusResult.value
+                is PlasticResult.Failure -> null
+            }
+            if (token.isCancellationRequested()) {
+                return cancellationFailure(PlasticOperation.FILE_HISTORY, result.state())
+            }
+            val movedQuery = status?.movedHistoryQuery(workspace, normalizedPath)
+            if (movedQuery != null) {
+                query = movedQuery
+                execution = executeFileHistory(workspace, query, request.limit + 1, token)
+                result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
+            }
         }
-        val result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
         processFailure(PlasticOperation.FILE_HISTORY, result.state())?.let { return it }
 
         val parsed = try {
             historyParser.parse(result.standardOutput) { checkParsingCancellation(token) }.also { history ->
-                if (history.itemName != null &&
-                    parseAbsolutePlasticPath(history.itemName, "history item path") != normalizedPath
-                ) {
+                if (history.itemName != null && !query.matches(history.itemName, normalizedPath)) {
                     throw PlasticParseException("Plastic history returned an inconsistent item path.")
                 }
             }
@@ -260,8 +273,43 @@ internal class DefaultPlasticGateway(
             revisions = Collections.unmodifiableList(ArrayList(newestFirst.take(request.limit))),
             hasMore = newestFirst.size > request.limit,
         )
-        cacheIfCurrent(generation) { historyCache.put(key, page) }
+        cacheIfCurrent(generation) { historyCache.put(key, CachedHistory(page, query)) }
         return processSuccess(PlasticOperation.FILE_HISTORY, result.state(), page)
+    }
+
+    private fun executeFileHistory(
+        workspace: PlasticWorkspace,
+        query: HistoryQuery,
+        limit: Int,
+        cancellation: PlasticCancellation,
+    ): CommandExecution<PlasticBinaryResult> =
+        runCommand(PlasticOperation.FILE_HISTORY) {
+            when (query) {
+                is HistoryQuery.WorkspacePath ->
+                    cli.fileHistory(workspace.root, query.path, limit, cancellation)
+
+                is HistoryQuery.ServerSpec ->
+                    cli.fileHistoryForServerSpec(workspace.root, query.value, limit, cancellation)
+            }
+        }
+
+    private fun PlasticBinaryResult.isPendingMoveCandidate(): Boolean =
+        exitCode == 1 && !timedOut && !cancelled && !standardOutputTruncated && !standardErrorTruncated
+
+    private fun PlasticWorkspaceStatus.movedHistoryQuery(
+        workspace: PlasticWorkspace,
+        requestedPath: Path,
+    ): HistoryQuery.ServerSpec? {
+        val oldPath = changes
+            .firstOrNull { change -> change.isMove && change.path.normalize() == requestedPath }
+            ?.oldPath
+            ?.normalize()
+            ?: return null
+        val relativePath = workspace.root.normalize().relativize(oldPath)
+        val serverPath = relativePath.joinToString(separator = "/", prefix = "/")
+        return HistoryQuery.ServerSpec(
+            "serverpath:$serverPath#cs:$workspaceChangeset@$repository@$server",
+        )
     }
 
     override fun revisionContent(
@@ -660,8 +708,8 @@ internal class DefaultPlasticGateway(
     private fun workspaceWeight(key: Path, workspace: PlasticWorkspace): Long =
         128L + textWeight(key.toString(), workspace.name, workspace.root.toString(), workspace.machine, workspace.workspaceType)
 
-    private fun historyWeight(key: HistoryKey, page: PlasticHistoryPage): Long =
-        128L + textWeight(key.path) + page.revisions.sumOf(::historyRevisionWeight)
+    private fun historyWeight(key: HistoryKey, cached: CachedHistory): Long =
+        128L + textWeight(key.path, cached.query.cacheText) + cached.page.revisions.sumOf(::historyRevisionWeight)
 
     /** Reuses a cached wider prefix, or a known complete history, without retaining overlapping pages. */
     private fun PlasticHistoryPage.boundedView(limit: Int): PlasticHistoryPage? {
@@ -742,6 +790,34 @@ internal class DefaultPlasticGateway(
         val path: String,
         val generation: Long,
     )
+
+    private data class CachedHistory(
+        val page: PlasticHistoryPage,
+        val query: HistoryQuery,
+    )
+
+    private sealed interface HistoryQuery {
+        val cacheText: String
+
+        fun matches(itemName: String, requestedPath: Path): Boolean
+
+        data class WorkspacePath(
+            val path: Path,
+        ) : HistoryQuery {
+            override val cacheText: String = path.toString()
+
+            override fun matches(itemName: String, requestedPath: Path): Boolean =
+                parseAbsolutePlasticPath(itemName, "history item path") == requestedPath
+        }
+
+        data class ServerSpec(
+            val value: String,
+        ) : HistoryQuery {
+            override val cacheText: String = value
+
+            override fun matches(itemName: String, requestedPath: Path): Boolean = itemName == value
+        }
+    }
 
     private data class RevisionKey(
         val repository: String,
