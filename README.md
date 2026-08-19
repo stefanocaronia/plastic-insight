@@ -62,7 +62,7 @@ The installable archive is written to `build\distributions`. To launch a disposa
 .\build.ps1 runIde
 ```
 
-GitHub Actions runs the same tests and plugin verification on every push and pull request. A matching `v*` tag builds the package and publishes it automatically as a GitHub Release asset.
+Before tagging a release, maintainers run Plugin Verifier locally against the installed Rider SDK. A matching `v*` tag makes GitHub Actions rebuild the plugin, run the project tests and Gradle structure checks, and publish the resulting ZIP as a GitHub Release asset. The workflow can also be started manually; it does not run on every push and does not retain multi-gigabyte Rider SDK caches.
 
 ## Documentation
 

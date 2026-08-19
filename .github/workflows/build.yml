@@ -2,9 +2,7 @@ name: Build and Release
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -26,9 +24,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # Rider SDK artifacts are several GiB; reuse existing cache entries without
-          # uploading a new multi-GiB cache after every release build.
-          cache-read-only: true
+          # Release builds are infrequent; avoid retaining multi-GiB Rider SDK caches.
+          cache-disabled: true
 
       - name: Validate release tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -39,9 +36,9 @@ jobs:
             throw "Tag $env:GITHUB_REF_NAME does not match plugin version $version."
           }
 
-      - name: Test, verify, and package
+      - name: Test and package
         shell: pwsh
-        run: .\gradlew.bat test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure verifyPlugin --no-daemon
+        run: .\gradlew.bat test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure --no-daemon
 
       - name: Upload plugin package
         uses: actions/upload-artifact@v4

@@ -60,8 +60,12 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            create(IntelliJPlatformType.Rider, riderVersion) {
-                useInstaller = false
+            if (localRiderHome != null) {
+                local(localRiderHome)
+            } else {
+                create(IntelliJPlatformType.Rider, riderVersion) {
+                    useInstaller = false
+                }
             }
         }
     }
