@@ -143,27 +143,19 @@ internal class DefaultPlasticGateway(
     override fun baseContent(
         workspace: PlasticWorkspace,
         status: PlasticWorkspaceStatus,
-        change: PlasticPendingChange,
+        basePath: Path,
         cancellation: PlasticCancellation,
-    ): PlasticResult<ByteArray?> {
+    ): PlasticResult<ByteArray> {
         disposedFailure(PlasticOperation.BASE_CONTENT)?.let { return it }
         cancellationPrecheck(PlasticOperation.BASE_CONTENT, cancellation)?.let { return it }
-        if (change.revisionId == null || PlasticStatusCode.ADDED in change.codes) {
-            return success(
-                operation = PlasticOperation.BASE_CONTENT,
-                origin = PlasticDiagnosticOrigin.PRECHECK,
-                value = null,
-            )
-        }
-
-        val basePath = (change.oldPath ?: change.path).normalize()
+        val normalizedBasePath = basePath.normalize()
         val generation = cacheGeneration.get()
         val key = ContentKey.Baseline(
             workspaceId = workspace.id,
             repository = status.repository,
             server = status.server,
             changeset = status.workspaceChangeset,
-            path = basePath.toString(),
+            path = normalizedBasePath.toString(),
         )
         contentCache[key]?.let { bytes ->
             return success(
@@ -175,7 +167,7 @@ internal class DefaultPlasticGateway(
 
         val token = combinedCancellation(cancellation)
         val execution = runCommand(PlasticOperation.BASE_CONTENT) {
-            cli.workspaceBaseline(workspace.root, basePath, status.workspaceChangeset, token)
+            cli.workspaceBaseline(workspace.root, normalizedBasePath, status.workspaceChangeset, token)
         }
         val result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
         processFailure(PlasticOperation.BASE_CONTENT, result.state())?.let { return it }

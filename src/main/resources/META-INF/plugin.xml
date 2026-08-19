@@ -11,4 +11,14 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
     <depends>com.intellij.modules.rider</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <vcs
+            name="Plastic Insight"
+            displayName="Plastic Insight"
+            vcsClass="com.teamcomplex.plasticinsight.rider.PlasticVcs"
+            administrativeAreaName=".plastic" />
+        <vcsRootChecker
+            implementation="com.teamcomplex.plasticinsight.rider.PlasticRootChecker" />
+    </extensions>
 </idea-plugin>

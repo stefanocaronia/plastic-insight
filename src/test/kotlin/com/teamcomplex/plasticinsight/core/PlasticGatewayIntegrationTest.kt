@@ -23,7 +23,12 @@ class PlasticGatewayIntegrationTest {
             )
             val workspace = assertIs<PlasticWorkspaceLookup.Found>(lookup.value).workspace
 
-            assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(it.status(workspace, file))
+            val status = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(it.status(workspace, file))
+            val baseline = assertIs<PlasticResult.Success<ByteArray>>(
+                it.baseContent(workspace, status.value, file),
+            )
+            assertTrue(baseline.value.isNotEmpty(), "The selected baseline unexpectedly has no content.")
+
             val history = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
                 it.fileHistory(workspace, file, PlasticHistoryRequest(limit = 10)),
             )

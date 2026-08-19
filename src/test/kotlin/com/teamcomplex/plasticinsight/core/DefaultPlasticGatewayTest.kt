@@ -15,7 +15,6 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DefaultPlasticGatewayTest {
@@ -105,25 +104,18 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
-    fun `base content uses move source and workspace changeset while caching defensive copies`() {
+    fun `base content uses explicit path and workspace changeset while caching defensive copies`() {
         val raw = byteArrayOf(1, 2, 3, 4)
         val expected = raw.copyOf()
         val runner = RecordingRunner(success(raw))
         val gateway = gateway(runner)
         val status = sampleStatus()
-        val moved = PlasticPendingChange(
-            codes = setOf(PlasticStatusCode.CHANGED, PlasticStatusCode.MOVED),
-            path = sampleRoot.resolve("new.cs"),
-            oldPath = sampleRoot.resolve("old.cs"),
-            isDirectory = false,
-            revisionId = 99,
-            similarityPercent = 100.0,
-        )
+        val basePath = sampleRoot.resolve("old.cs")
 
-        val first = assertIs<PlasticResult.Success<ByteArray?>>(gateway.baseContent(sampleWorkspace, status, moved))
+        val first = assertIs<PlasticResult.Success<ByteArray>>(gateway.baseContent(sampleWorkspace, status, basePath))
         assertContentEquals(expected, first.value)
-        first.value?.set(0, 99)
-        val cached = assertIs<PlasticResult.Success<ByteArray?>>(gateway.baseContent(sampleWorkspace, status, moved))
+        first.value[0] = 99
+        val cached = assertIs<PlasticResult.Success<ByteArray>>(gateway.baseContent(sampleWorkspace, status, basePath))
 
         assertContentEquals(expected, cached.value)
         assertEquals(1, runner.invocations.size)
@@ -131,27 +123,6 @@ class DefaultPlasticGatewayTest {
             listOf("cm.exe", "cat", "${sampleRoot.resolve("old.cs")}#cs:42", "--raw"),
             runner.invocations.single().commandLine(),
         )
-    }
-
-    @Test
-    fun `added content has no baseline and starts no process`() {
-        val runner = RecordingRunner()
-        val gateway = gateway(runner)
-        val added = PlasticPendingChange(
-            codes = setOf(PlasticStatusCode.ADDED),
-            path = sampleRoot.resolve("added.cs"),
-            oldPath = null,
-            isDirectory = false,
-            revisionId = null,
-            similarityPercent = null,
-        )
-
-        val result = assertIs<PlasticResult.Success<ByteArray?>>(
-            gateway.baseContent(sampleWorkspace, sampleStatus(), added),
-        )
-
-        assertNull(result.value)
-        assertTrue(runner.invocations.isEmpty())
     }
 
     @Test
@@ -258,9 +229,9 @@ class DefaultPlasticGatewayTest {
             revisionId = 7,
             similarityPercent = null,
         )
-        val firstResult = AtomicReference<PlasticResult<ByteArray?>>()
+        val firstResult = AtomicReference<PlasticResult<ByteArray>>()
         val worker = Thread.ofPlatform().start {
-            firstResult.set(gateway.baseContent(sampleWorkspace, sampleStatus(), changed))
+            firstResult.set(gateway.baseContent(sampleWorkspace, sampleStatus(), changed.path))
         }
 
         assertTrue(runner.entered.await(5, TimeUnit.SECONDS))
@@ -269,8 +240,8 @@ class DefaultPlasticGatewayTest {
         worker.join(5_000)
 
         assertFalse(worker.isAlive)
-        assertIs<PlasticResult.Success<ByteArray?>>(firstResult.get())
-        assertIs<PlasticResult.Success<ByteArray?>>(gateway.baseContent(sampleWorkspace, sampleStatus(), changed))
+        assertIs<PlasticResult.Success<ByteArray>>(firstResult.get())
+        assertIs<PlasticResult.Success<ByteArray>>(gateway.baseContent(sampleWorkspace, sampleStatus(), changed.path))
         assertEquals(2, runner.callCount.get())
     }
 

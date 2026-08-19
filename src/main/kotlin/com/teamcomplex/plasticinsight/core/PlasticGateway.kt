@@ -44,9 +44,9 @@ interface PlasticGateway : AutoCloseable {
     fun baseContent(
         workspace: PlasticWorkspace,
         status: PlasticWorkspaceStatus,
-        change: PlasticPendingChange,
+        basePath: Path,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
-    ): PlasticResult<ByteArray?>
+    ): PlasticResult<ByteArray>
 
     fun fileHistory(
         workspace: PlasticWorkspace,
