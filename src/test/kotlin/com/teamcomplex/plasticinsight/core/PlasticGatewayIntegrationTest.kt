@@ -27,7 +27,7 @@ class PlasticGatewayIntegrationTest {
                 it.status(workspace, file, includePrivateFiles = true),
             )
             val workspaceStatus = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
-                it.status(workspace, workspace.root),
+                it.status(workspace, workspace.root, includePrivateFiles = true),
             )
             assertTrue(
                 workspaceStatus.value.changes.all { change -> change.path.startsWith(workspace.root) },

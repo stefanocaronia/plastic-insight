@@ -50,6 +50,10 @@ class PlasticChangeProviderTest {
 
         assertTrue(private.isRiderUnversioned())
         assertNull(private.riderKind())
+
+        val ignored = change(PlasticStatusCode.IGNORED)
+        assertTrue(ignored.isRiderIgnored())
+        assertNull(ignored.riderKind())
     }
 
     @Test

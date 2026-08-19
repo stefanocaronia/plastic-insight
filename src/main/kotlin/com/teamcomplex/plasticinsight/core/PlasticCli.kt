@@ -39,8 +39,9 @@ class PlasticCli(
     fun workspaceStatus(
         workspaceRoot: Path,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
+        includePrivateFiles: Boolean = false,
     ): PlasticTextResult =
-        execute(commandBuilder.workspaceStatus(workspaceRoot), cancellation)
+        execute(commandBuilder.workspaceStatus(workspaceRoot, includePrivateFiles), cancellation)
 
     fun workspaceFromPath(
         workingDirectory: Path,

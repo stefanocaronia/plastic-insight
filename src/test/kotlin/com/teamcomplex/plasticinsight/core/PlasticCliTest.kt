@@ -78,6 +78,12 @@ class PlasticCliTest {
         assertEquals(workspaceRoot.toString(), runner.lastInvocation?.arguments?.get(1))
         assertEquals(1024 * 1024, runner.lastInvocation?.standardOutputLimitBytes)
         assertTrue("--private" !in requireNotNull(runner.lastInvocation).arguments)
+
+        cli.workspaceStatus(workspaceRoot, includePrivateFiles = true)
+
+        assertTrue("--private" in requireNotNull(runner.lastInvocation).arguments)
+        assertTrue("--ignored" in requireNotNull(runner.lastInvocation).arguments)
+        assertTrue("--cutignored" in requireNotNull(runner.lastInvocation).arguments)
     }
 
     @Test
@@ -93,6 +99,8 @@ class PlasticCliTest {
         )
 
         assertTrue("--private" in requireNotNull(runner.lastInvocation).arguments)
+        assertTrue("--ignored" in requireNotNull(runner.lastInvocation).arguments)
+        assertTrue("--cutignored" in requireNotNull(runner.lastInvocation).arguments)
     }
 
     @Test

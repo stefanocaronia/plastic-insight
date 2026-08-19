@@ -77,6 +77,18 @@ class PlasticStatusParserTest {
     }
 
     @Test
+    fun `parses an ignored marker requested for cut-ignored traversal`() {
+        val output = record("STATUS", "42", "repository", "server") +
+            record("IG", "C:\\workspace\\generated", "True", "-1", "NO_MERGES")
+
+        val change = parser.parse(output).changes.single()
+
+        assertEquals(setOf(PlasticStatusCode.IGNORED), change.codes)
+        assertTrue(change.isDirectory)
+        assertNull(change.revisionId)
+    }
+
+    @Test
     fun `rejects output without record framing`() {
         assertFailsWith<PlasticParseException> {
             parser.parse("STATUS\u001F42\u001Frepository\u001Fserver")

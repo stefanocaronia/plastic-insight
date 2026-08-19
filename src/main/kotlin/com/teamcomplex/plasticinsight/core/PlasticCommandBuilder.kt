@@ -61,15 +61,18 @@ class PlasticCommandBuilder(
         )
     }
 
-    /** Filtered root status for Rider's broad refresh; private files are deliberately excluded. */
-    fun workspaceStatus(workspaceRoot: Path): PlasticInvocation {
+    /** Filtered, output-bounded root status for Rider's broad refresh. */
+    fun workspaceStatus(
+        workspaceRoot: Path,
+        includePrivateFiles: Boolean = false,
+    ): PlasticInvocation {
         require(workspaceRoot.isAbsolute) { "The Plastic workspace root must be absolute." }
         val normalizedRoot = workspaceRoot.normalize()
         return statusInvocation(
             workspaceRoot = normalizedRoot,
             scope = normalizedRoot,
             outputLimitBytes = minOf(textOutputLimitBytes, WORKSPACE_STATUS_OUTPUT_LIMIT_BYTES),
-            includePrivateFiles = false,
+            includePrivateFiles = includePrivateFiles,
         )
     }
 
@@ -91,7 +94,11 @@ class PlasticCommandBuilder(
                 add("--changed")
                 add("--localdeleted")
                 add("--localmoved")
-                if (includePrivateFiles) add("--private")
+                if (includePrivateFiles) {
+                    add("--private")
+                    add("--ignored")
+                    add("--cutignored")
+                }
                 add("--fieldseparator=$UNIT_SEPARATOR")
                 add("--startlineseparator=$RECORD_SEPARATOR")
                 add("--endlineseparator=$GROUP_SEPARATOR")

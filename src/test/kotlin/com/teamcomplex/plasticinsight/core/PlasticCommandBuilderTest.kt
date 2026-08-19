@@ -105,6 +105,18 @@ class PlasticCommandBuilderTest {
     }
 
     @Test
+    fun `workspace private discovery cuts ignored directory contents and remains output bounded`() {
+        val workspaceRoot = absoluteTestPath("Sample Workspace")
+        val invocation = PlasticCommandBuilder(textOutputLimitBytes = 8 * 1024 * 1024)
+            .workspaceStatus(workspaceRoot, includePrivateFiles = true)
+
+        assertEquals(1024 * 1024, invocation.standardOutputLimitBytes)
+        assertTrue("--private" in invocation.arguments)
+        assertTrue("--ignored" in invocation.arguments)
+        assertTrue("--cutignored" in invocation.arguments)
+    }
+
+    @Test
     fun `constrained status can include private files only for its exact scope`() {
         val workspaceRoot = absoluteTestPath("workspace")
         val file = workspaceRoot.resolve("new file.cs")
@@ -116,6 +128,8 @@ class PlasticCommandBuilderTest {
         )
 
         assertTrue("--private" in invocation.arguments)
+        assertTrue("--ignored" in invocation.arguments)
+        assertTrue("--cutignored" in invocation.arguments)
         assertEquals(file.toString(), invocation.arguments[1])
     }
 

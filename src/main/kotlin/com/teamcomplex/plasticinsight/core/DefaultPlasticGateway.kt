@@ -116,8 +116,7 @@ internal class DefaultPlasticGateway(
         val token = combinedCancellation(cancellation)
         val execution = runCommand(PlasticOperation.STATUS) {
             if (normalizedScope == normalizedRoot) {
-                require(!includePrivateFiles) { "Private files cannot be requested for a workspace-root status." }
-                cli.workspaceStatus(normalizedRoot, token)
+                cli.workspaceStatus(normalizedRoot, token, includePrivateFiles)
             } else {
                 cli.constrainedStatus(normalizedRoot, normalizedScope, token, includePrivateFiles)
             }

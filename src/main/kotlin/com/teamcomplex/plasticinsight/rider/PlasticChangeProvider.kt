@@ -68,17 +68,18 @@ internal class PlasticChangeProvider(
             val snapshot = vcs.loadStatus(
                 scope = scope.path,
                 cancellation = cancellation,
-                includePrivateFiles = !scope.recursive,
+                includePrivateFiles = true,
             ) ?: continue
             if (scope.recursive && scope.path.normalize() == snapshot.workspace.root.normalize()) {
                 rootFallbacks[snapshot.workspace.root.normalize()] = snapshot
             }
             for (change in snapshot.status.changes) {
                 if (!scope.contains(change) || change.isDirectory) continue
+                if (change.isRiderIgnored()) continue
                 if (reportedPaths.contains(change.path.normalize())) continue
                 progress.checkCanceled()
                 // Exact move destinations can look private; controlled status is authoritative.
-                val fallback = if (change.isRiderUnversioned()) rootFallback(snapshot) else null
+                val fallback = if (!scope.recursive && change.isRiderUnversioned()) rootFallback(snapshot) else null
                 val preferred = fallback?.let { status ->
                     preferControlledChange(change.path, change, status.status.changes)
                 } ?: change
@@ -128,6 +129,9 @@ internal fun PlasticPendingChange.riderKind(): PlasticRiderChangeKind? =
 
 internal fun PlasticPendingChange.isRiderUnversioned(): Boolean =
     !isDirectory && PlasticStatusCode.PRIVATE in codes
+
+internal fun PlasticPendingChange.isRiderIgnored(): Boolean =
+    PlasticStatusCode.IGNORED in codes
 
 internal fun preferControlledChange(
     scope: Path,

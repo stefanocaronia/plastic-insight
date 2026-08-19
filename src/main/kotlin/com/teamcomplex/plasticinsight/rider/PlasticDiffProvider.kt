@@ -27,7 +27,7 @@ internal class PlasticDiffProvider(
             val snapshot = vcs.loadStatus(path, vcs.currentCancellation(), includePrivateFiles = true)
                 ?: return@safely null
             if (snapshot.status.changes.any { change ->
-                    change.matches(path) && PlasticStatusCode.PRIVATE in change.codes
+                    change.matches(path) && change.codes.any(::hasNoControlledRevision)
                 }
             ) {
                 return@safely null
@@ -62,7 +62,7 @@ internal class PlasticDiffProvider(
 
         val pendingChange = snapshot.status.changes.firstOrNull { change -> change.matches(selectedPath) }
         if (pendingChange?.codes?.any { code ->
-                code == PlasticStatusCode.ADDED || code == PlasticStatusCode.PRIVATE
+                code == PlasticStatusCode.ADDED || hasNoControlledRevision(code)
             } == true
         ) {
             return null
@@ -96,6 +96,9 @@ internal class PlasticDiffProvider(
         val LOG: Logger = Logger.getInstance(PlasticDiffProvider::class.java)
     }
 }
+
+private fun hasNoControlledRevision(code: PlasticStatusCode): Boolean =
+    code == PlasticStatusCode.PRIVATE || code == PlasticStatusCode.IGNORED
 
 internal class PlasticBaseContentRevision(
     private val vcs: PlasticVcs,

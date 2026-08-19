@@ -124,7 +124,7 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
-    fun `private status is bounded to a strict child scope`() {
+    fun `private status uses cut-ignored discovery for child and root scopes`() {
         val file = sampleRoot.resolve("new.cs")
         val output = (
             "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D\r\n" +
@@ -139,13 +139,25 @@ class DefaultPlasticGatewayTest {
 
         assertEquals(setOf(PlasticStatusCode.PRIVATE), result.value.changes.single().codes)
         assertTrue("--private" in runner.invocations.single().arguments)
+        assertTrue("--ignored" in runner.invocations.single().arguments)
+        assertTrue("--cutignored" in runner.invocations.single().arguments)
 
-        val rootRunner = RecordingRunner()
-        val rootResult = assertIs<PlasticResult.Failure>(
+        val ignored = sampleRoot.resolve("generated.tmp")
+        val rootOutput = (
+            "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D\r\n" +
+                "\u001EPR\u001F$file\u001FFalse\u001F-1\u001FNO_MERGES\u001D\r\n" +
+                "\u001EIG\u001F$ignored\u001FFalse\u001F-1\u001FNO_MERGES\u001D"
+            ).toByteArray()
+        val rootRunner = RecordingRunner(success(rootOutput))
+        val rootResult = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
             gateway(rootRunner).status(sampleWorkspace, sampleRoot, includePrivateFiles = true),
         )
-        assertIs<PlasticFailure.ExecutionFailed>(rootResult.reason)
-        assertTrue(rootRunner.invocations.isEmpty())
+        assertEquals(
+            listOf(setOf(PlasticStatusCode.PRIVATE), setOf(PlasticStatusCode.IGNORED)),
+            rootResult.value.changes.map(PlasticPendingChange::codes),
+        )
+        assertEquals(1024 * 1024, rootRunner.invocations.single().standardOutputLimitBytes)
+        assertTrue("--cutignored" in rootRunner.invocations.single().arguments)
     }
 
     @Test
