@@ -231,6 +231,51 @@ class PlasticCommandBuilderTest {
     }
 
     @Test
+    fun `add uses explicit ordered paths without recursive expansion`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val directory = workspaceRoot.resolve("new directory")
+        val file = directory.resolve("Ω.cs")
+
+        val invocation = PlasticCommandBuilder(executable = "cm.exe").add(
+            workspaceRoot = workspaceRoot,
+            paths = listOf(file, directory, file),
+        )
+
+        assertEquals(
+            listOf("cm.exe", "add", "--noinfo", directory.toString(), file.toString()),
+            invocation.commandLine(),
+        )
+        assertEquals(workspaceRoot, invocation.workingDirectory)
+        assertEquals(1024 * 1024, invocation.standardOutputLimitBytes)
+    }
+
+    @Test
+    fun `undo is exact and rejects workspace root or outside paths`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val file = workspaceRoot.resolve("changed file.cs")
+        val builder = PlasticCommandBuilder(executable = "cm.exe")
+
+        val invocation = builder.undo(workspaceRoot, listOf(file))
+
+        assertEquals(listOf("cm.exe", "undo", "--silent", file.toString()), invocation.commandLine())
+        assertTrue("-r" !in invocation.arguments)
+        assertTrue("--recursive" !in invocation.arguments)
+        assertFailsWith<IllegalArgumentException> { builder.undo(workspaceRoot, listOf(workspaceRoot)) }
+        assertFailsWith<IllegalArgumentException> {
+            builder.undo(workspaceRoot, listOf(absoluteTestPath("outside", "file.cs")))
+        }
+    }
+
+    @Test
+    fun `workspace mutations reject empty and relative paths`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> { builder.add(workspaceRoot, emptyList()) }
+        assertFailsWith<IllegalArgumentException> { builder.add(workspaceRoot, listOf(Path.of("relative.cs"))) }
+    }
+
+    @Test
     fun `file history uses bounded XML contract`() {
         val workspaceRoot = absoluteTestPath("Sample Workspace")
         val filePath = workspaceRoot.resolve("Source with spaces").resolve("Ω.cpp")

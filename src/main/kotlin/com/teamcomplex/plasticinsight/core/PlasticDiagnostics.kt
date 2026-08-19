@@ -7,6 +7,8 @@ enum class PlasticOperation {
     WORKSPACE_DISCOVERY,
     STATUS,
     BASE_CONTENT,
+    ADD,
+    UNDO,
     FILE_HISTORY,
     HISTORICAL_PATH,
     REVISION_CONTENT,

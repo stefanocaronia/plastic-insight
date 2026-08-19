@@ -9,7 +9,9 @@ import com.intellij.openapi.vcs.VcsException
 import com.intellij.openapi.vcs.VcsKey
 import com.intellij.openapi.vcs.VcsType
 import com.intellij.openapi.vcs.changes.ChangeProvider
+import com.intellij.openapi.vcs.checkin.CheckinEnvironment
 import com.intellij.openapi.vcs.diff.DiffProvider
+import com.intellij.openapi.vcs.rollback.RollbackEnvironment
 import com.teamcomplex.plasticinsight.core.PlasticCancellation
 import com.teamcomplex.plasticinsight.core.PlasticFailure
 import com.teamcomplex.plasticinsight.core.PlasticGateway
@@ -33,6 +35,10 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
     override fun getChangeProvider(): ChangeProvider = changeProvider
 
     override fun getDiffProvider(): DiffProvider = diffProvider
+
+    override fun createCheckinEnvironment(): CheckinEnvironment = PlasticCheckinEnvironment(this)
+
+    override fun createRollbackEnvironment(): RollbackEnvironment = PlasticRollbackEnvironment(this)
 
     override fun getType(): VcsType = VcsType.centralized
 
@@ -91,6 +97,28 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
         )
     }
 
+    internal fun addPaths(
+        workspaceRoot: Path,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation,
+    ) {
+        requireBackgroundThread()
+        val gateway = gateway()
+        val workspace = workspace(gateway, workspaceRoot, cancellation)
+        unwrap(gateway.add(workspace, paths, cancellation), "add")
+    }
+
+    internal fun undoPaths(
+        workspaceRoot: Path,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation,
+    ) {
+        requireBackgroundThread()
+        val gateway = gateway()
+        val workspace = workspace(gateway, workspaceRoot, cancellation)
+        unwrap(gateway.undo(workspace, paths, cancellation), "rollback")
+    }
+
     internal fun currentCancellation(): PlasticCancellation {
         val indicator = ProgressManager.getInstanceOrNull()?.progressIndicator
         return PlasticCancellation { project.isDisposed || indicator?.isCanceled == true }
@@ -111,6 +139,26 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
             gatewayResult ?: PlasticGatewayFactory().create().also { gatewayResult = it }
         }
         return unwrap(result, "initialization")
+    }
+
+    private fun workspace(
+        gateway: PlasticGateway,
+        root: Path,
+        cancellation: PlasticCancellation,
+    ): PlasticWorkspace {
+        val normalizedRoot = root.toAbsolutePath().normalize()
+        return when (val lookup = unwrap(
+            gateway.discoverWorkspace(normalizedRoot, cancellation),
+            "workspace discovery",
+        )) {
+            is PlasticWorkspaceLookup.Found -> lookup.workspace.also { workspace ->
+                if (workspace.root.normalize() != normalizedRoot) {
+                    throw VcsException("Plastic returned a different workspace root.")
+                }
+            }
+
+            PlasticWorkspaceLookup.NotFound -> throw VcsException("The selected path is not in a Plastic workspace.")
+        }
     }
 
     private fun <T> unwrap(

@@ -18,7 +18,7 @@ The plugin is intended to work even when Unity Version Control's existing Rider 
 
 - **Native Rider behavior:** use IntelliJ VCS APIs so Rider owns gutter rendering, diff presentation, refresh, and history UI where possible.
 - **Direct Plastic access:** execute finite `cm.exe` commands and consume their result; do not keep a `cm shell` process alive.
-- **Read-only first:** the MVP observes repository state and retrieves content but does not mutate a workspace or repository.
+- **Inspector first:** observation and comparison remain the product focus; a small workspace action is added only when Rider supplies the correct UX and the Plastic command can be kept explicit, bounded, and cancellable.
 - **Testable core:** CLI arguments, parsers, path mapping, and domain models remain independent of Rider.
 - **Incremental growth:** future capabilities extend explicit interfaces instead of replacing the foundation.
 
@@ -95,7 +95,19 @@ Requirements:
 
 Implementation baseline as of 2026-08-19: the core builds bounded XML history, historical-path lookup, and `serverpath:` raw-content invocations. Forward-only StAX parsers consume captured UTF-8 bytes directly, reject DTD/external entities, enforce entry limits, preserve Unicode and multiline comments, model checkout and metadata-only events, and treat zero/one/multiple historical lookups as not-found/found/ambiguous. History is exposed newest-first as a bounded initial view with one-record lookahead and explicit `hasMore`; `cm history` has no verified cursor or offset, so this is intentionally bounded loading rather than simulated native pagination. Historical paths and selected content use bounded LRU caches, content is fetched lazily, and unavailable, archived, purged, ambiguous, malformed, timed-out, truncated, and cancelled outcomes remain distinct. Live read-only gateway validation succeeded end to end for discovery, status, history, lookup, and historical bytes. Rider history sessions and long-history UI behavior remain Phase 4 work.
 
-### 4.4 Diagnostics and settings
+### 4.4 Limited workspace actions
+
+Plastic Insight is not a full Plastic client. The initial writable surface is deliberately limited to actions that fit Rider's standard local-changes UI.
+
+- FR-040: “Add to VCS” shall add only explicitly selected items and shall never imply a recursive workspace scan.
+- FR-041: “Rollback” shall undo only explicitly selected changes after Rider's normal confirmation.
+- FR-042: every mutating command shall remain shell-free, cancellable, output-bounded, and strictly inside its mapped workspace.
+- FR-043: a failed, cancelled, or timed-out multi-item mutation shall invalidate read caches because Plastic may have changed a subset before failing.
+- FR-044: check-in/commit and update actions shall remain disabled until their complete workflows are implemented.
+
+Implementation baseline as of 2026-08-19: the standard Rider `CheckinEnvironment` exposes only exact `cm add`, while `RollbackEnvironment` maps selected modified, added, deleted, and moved changes to exact non-recursive `cm undo`. Parent paths are ordered before children for add; workspace roots and outside paths are rejected. Rider's ordinary file deletion and move operations remain local filesystem actions, and “Move to Another Changelist” remains Rider-local grouping. No persistent service, queue, cache, or process was added for these user-initiated actions. Manual Rider validation confirmed that Add moves a private item into controlled changes and Rollback restores the expected Plastic workspace state through Rider's standard confirmation flow.
+
+### 4.5 Diagnostics and settings
 
 - FR-030: automatically resolve `cm.exe` from an explicit setting, `CM_EXE`, common installation locations, or `PATH`.
 - FR-031: allow a configurable command timeout.
@@ -107,8 +119,9 @@ Implementation baseline as of 2026-08-19: the core resolves `cm.exe` once in the
 
 ## 5. Out of scope for the MVP
 
-- checkin and shelve workflows;
-- update, switch, merge, branch creation, and workspace mutation;
+- checkin/commit and shelve workflows;
+- update, switch, merge, and branch creation;
+- broad, recursive, or administrative workspace mutations;
 - lock acquisition or release;
 - Plastic GUI replacement;
 - custom diff algorithms;
@@ -182,10 +195,10 @@ Using a real Plastic workspace in Rider 2026.2:
 
 ### 9.1 Current build-validation baseline
 
-As of 2026-08-19, 96 automatic Kotlin/JUnit tests pass and one read-only live gateway test is skipped unless explicitly enabled; that opt-in test also passes separately against a representative Plastic file. `test`, `buildPlugin`, `verifyPluginProjectConfiguration`, and `verifyPluginStructure` pass against the local Rider 2026.2 SDK and JetBrains Runtime 25. Pure tests do not depend on Rider's bundled test framework; that dependency will be introduced only when IntelliJ fixture tests require it. The current installable artifact is `build/distributions/plastic-insight-0.1.0-SNAPSHOT.zip`. Project verification emits the known recommendation to remove the deliberate `262.*` upper compatibility bound; compatibility policy remains a Phase 5 decision.
+As of 2026-08-19, 124 automatic Kotlin/JUnit tests pass and one read-only live gateway test is skipped unless explicitly enabled; that opt-in test also passes separately against a representative Plastic file. `test`, `buildPlugin`, `verifyPluginProjectConfiguration`, and `verifyPluginStructure` pass against the local Rider 2026.2 SDK and JetBrains Runtime 25. Pure tests do not depend on Rider's bundled test framework; that dependency will be introduced only when IntelliJ fixture tests require it. The current installable artifact is `build/distributions/plastic-insight-0.1.6-SNAPSHOT.zip`. Project verification emits the known recommendation to remove the deliberate `262.*` upper compatibility bound; compatibility policy remains a Phase 5 decision.
 
 ## 10. Future capability map
 
 Potential later increments include annotations/blame, changed-file tree improvements, revision-to-revision comparison, external change watching, locks, branches, shelves, changelist-aware checkin, multi-repository workspaces, remote-development support, and Marketplace packaging.
 
-Every mutating feature must be designed as an explicit command with confirmation, cancellation, failure recovery, and integration tests against a disposable workspace.
+Every additional mutating feature must be designed as an explicit command with confirmation, cancellation, failure recovery, and integration tests against a disposable workspace. No mutating validation may be run against a user's existing workspace by an agent.

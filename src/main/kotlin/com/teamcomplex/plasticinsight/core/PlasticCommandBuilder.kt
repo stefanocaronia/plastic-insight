@@ -135,6 +135,28 @@ class PlasticCommandBuilder(
         )
     }
 
+    /** Adds only the explicitly supplied items; directory contents are never expanded here. */
+    fun add(
+        workspaceRoot: Path,
+        paths: Collection<Path>,
+    ): PlasticInvocation = workspaceMutation(
+        workspaceRoot = workspaceRoot,
+        paths = paths,
+        command = "add",
+        options = listOf("--noinfo"),
+    )
+
+    /** Undoes only the explicitly supplied items; the workspace root and recursion are forbidden. */
+    fun undo(
+        workspaceRoot: Path,
+        paths: Collection<Path>,
+    ): PlasticInvocation = workspaceMutation(
+        workspaceRoot = workspaceRoot,
+        paths = paths,
+        command = "undo",
+        options = listOf("--silent"),
+    )
+
     fun fileHistory(
         workspaceRoot: Path,
         filePath: Path,
@@ -240,6 +262,41 @@ class PlasticCommandBuilder(
         return normalizedRoot to normalizedPath
     }
 
+    private fun workspaceMutation(
+        workspaceRoot: Path,
+        paths: Collection<Path>,
+        command: String,
+        options: List<String>,
+    ): PlasticInvocation {
+        require(workspaceRoot.isAbsolute) { "The Plastic workspace root must be absolute." }
+        require(paths.isNotEmpty()) { "At least one Plastic workspace path is required." }
+        val normalizedRoot = workspaceRoot.normalize()
+        val normalizedPaths = paths
+            .map { path ->
+                require(path.isAbsolute) { "Plastic workspace paths must be absolute." }
+                path.normalize().also { normalizedPath ->
+                    require(normalizedPath != normalizedRoot && normalizedPath.startsWith(normalizedRoot)) {
+                        "Plastic workspace paths must be strictly inside the workspace root."
+                    }
+                }
+            }
+            .distinct()
+            .sortedWith(compareBy<Path>({ it.nameCount }, { it.toString() }))
+
+        return PlasticInvocation(
+            executable = executable,
+            arguments = buildList {
+                add(command)
+                addAll(options)
+                normalizedPaths.forEach { path -> add(path.toString()) }
+            },
+            workingDirectory = normalizedRoot,
+            timeout = timeout,
+            standardOutputLimitBytes = MUTATION_OUTPUT_LIMIT_BYTES,
+            standardErrorLimitBytes = errorOutputLimitBytes,
+        )
+    }
+
     private fun validatedRepositorySpec(repository: String, server: String): String {
         require(repository.isNotBlank()) { "The Plastic repository must not be blank." }
         require(server.isNotBlank()) { "The Plastic server must not be blank." }
@@ -252,6 +309,7 @@ class PlasticCommandBuilder(
     private companion object {
         const val MAX_HISTORY_LIMIT = 1000
         const val DISCOVERY_OUTPUT_LIMIT_BYTES = 64 * 1024
+        const val MUTATION_OUTPUT_LIMIT_BYTES = 1024 * 1024
         const val WORKSPACE_STATUS_OUTPUT_LIMIT_BYTES = 1024 * 1024
         const val DEFAULT_TEXT_OUTPUT_LIMIT_BYTES = 8 * 1024 * 1024
         const val DEFAULT_BINARY_OUTPUT_LIMIT_BYTES = 32 * 1024 * 1024

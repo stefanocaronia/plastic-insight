@@ -183,6 +183,43 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
+    fun `workspace mutations are exact typed and invalidate prior caches`() {
+        val discovery = workspaceDiscoveryOutput().toByteArray()
+        val runner = RecordingRunner(success(discovery), success(byteArrayOf()), success(discovery), success(byteArrayOf()))
+        val gateway = gateway(runner)
+        val file = sampleRoot.resolve("new file.cs")
+
+        assertIs<PlasticWorkspaceLookup.Found>(
+            assertIs<PlasticResult.Success<PlasticWorkspaceLookup>>(gateway.discoverWorkspace(sampleRoot)).value,
+        )
+        assertIs<PlasticResult.Success<Unit>>(gateway.add(sampleWorkspace, listOf(file)))
+        assertIs<PlasticWorkspaceLookup.Found>(
+            assertIs<PlasticResult.Success<PlasticWorkspaceLookup>>(gateway.discoverWorkspace(sampleRoot)).value,
+        )
+        assertIs<PlasticResult.Success<Unit>>(gateway.undo(sampleWorkspace, listOf(file)))
+
+        assertEquals(listOf("add", "undo"), runner.invocations.mapNotNull { invocation ->
+            invocation.arguments.firstOrNull()?.takeIf { it == "add" || it == "undo" }
+        })
+        assertEquals(4, runner.invocations.size)
+    }
+
+    @Test
+    fun `failed mutation remains typed and clears caches for possible partial changes`() {
+        val discovery = workspaceDiscoveryOutput().toByteArray()
+        val runner = RecordingRunner(success(discovery), processResult(exitCode = 9), success(discovery))
+        val gateway = gateway(runner)
+        val file = sampleRoot.resolve("new file.cs")
+
+        gateway.discoverWorkspace(sampleRoot)
+        val failed = assertIs<PlasticResult.Failure>(gateway.add(sampleWorkspace, listOf(file)))
+        gateway.discoverWorkspace(sampleRoot)
+
+        assertEquals(PlasticFailure.CommandFailed(9), failed.reason)
+        assertEquals(3, runner.invocations.size)
+    }
+
+    @Test
     fun `history returns a bounded newest-first page with explicit more state and caches it`() {
         val runner = RecordingRunner(success(fixture("/fixtures/history/representative.xml")))
         val gateway = gateway(runner)

@@ -49,6 +49,18 @@ interface PlasticGateway : AutoCloseable {
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
     ): PlasticResult<ByteArray>
 
+    fun add(
+        workspace: PlasticWorkspace,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticResult<Unit>
+
+    fun undo(
+        workspace: PlasticWorkspace,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticResult<Unit>
+
     fun fileHistory(
         workspace: PlasticWorkspace,
         filePath: Path,

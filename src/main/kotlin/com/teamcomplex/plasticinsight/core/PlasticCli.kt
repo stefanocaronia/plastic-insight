@@ -58,6 +58,18 @@ class PlasticCli(
     ): PlasticBinaryResult =
         executeBinary(commandBuilder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset), cancellation)
 
+    fun add(
+        workspaceRoot: Path,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticTextResult = execute(commandBuilder.add(workspaceRoot, paths), cancellation)
+
+    fun undo(
+        workspaceRoot: Path,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation = PlasticCancellation.NONE,
+    ): PlasticTextResult = execute(commandBuilder.undo(workspaceRoot, paths), cancellation)
+
     fun fileHistory(
         workspaceRoot: Path,
         filePath: Path,

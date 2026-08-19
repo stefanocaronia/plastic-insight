@@ -149,6 +149,26 @@ class PlasticCliTest {
     }
 
     @Test
+    fun `add and undo execute dedicated exact workspace commands`() {
+        val runner = RecordingRunner(success())
+        val cli = PlasticCli(runner, executable = "cm.exe")
+        val workspaceRoot = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
+        val file = workspaceRoot.resolve("file with spaces.cs")
+
+        cli.add(workspaceRoot, listOf(file))
+        assertEquals(
+            listOf("cm.exe", "add", "--noinfo", file.toString()),
+            runner.lastInvocation?.commandLine(),
+        )
+
+        cli.undo(workspaceRoot, listOf(file))
+        assertEquals(
+            listOf("cm.exe", "undo", "--silent", file.toString()),
+            runner.lastInvocation?.commandLine(),
+        )
+    }
+
+    @Test
     fun `file history executes the bounded XML command`() {
         val runner = RecordingRunner(success())
         val cli = PlasticCli(runner, executable = "cm.exe")

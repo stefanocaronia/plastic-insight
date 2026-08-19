@@ -186,6 +186,30 @@ internal class DefaultPlasticGateway(
         return processSuccess(PlasticOperation.BASE_CONTENT, result.state(), result.standardOutput)
     }
 
+    override fun add(
+        workspace: PlasticWorkspace,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation,
+    ): PlasticResult<Unit> = mutateWorkspace(
+        operation = PlasticOperation.ADD,
+        workspace = workspace,
+        paths = paths,
+        cancellation = cancellation,
+        command = cli::add,
+    )
+
+    override fun undo(
+        workspace: PlasticWorkspace,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation,
+    ): PlasticResult<Unit> = mutateWorkspace(
+        operation = PlasticOperation.UNDO,
+        workspace = workspace,
+        paths = paths,
+        cancellation = cancellation,
+        command = cli::undo,
+    )
+
     override fun fileHistory(
         workspace: PlasticWorkspace,
         filePath: Path,
@@ -312,6 +336,28 @@ internal class DefaultPlasticGateway(
             cacheGeneration.incrementAndGet()
             clearCaches()
         }
+    }
+
+    private fun mutateWorkspace(
+        operation: PlasticOperation,
+        workspace: PlasticWorkspace,
+        paths: Collection<Path>,
+        cancellation: PlasticCancellation,
+        command: (Path, Collection<Path>, PlasticCancellation) -> PlasticTextResult,
+    ): PlasticResult<Unit> {
+        disposedFailure(operation)?.let { return it }
+        cancellationPrecheck(operation, cancellation)?.let { return it }
+        val token = combinedCancellation(cancellation)
+        val execution = runCommand(operation) {
+            command(workspace.root.normalize(), paths, token)
+        }
+        val result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
+
+        // A failed or cancelled multi-item command may still have changed a subset.
+        invalidateCaches()
+        processFailure(operation, result.state())?.let { return it }
+        if (token.isCancellationRequested()) return cancellationFailure(operation, result.state())
+        return processSuccess(operation, result.state(), Unit)
     }
 
     private fun resolveHistoricalPath(
