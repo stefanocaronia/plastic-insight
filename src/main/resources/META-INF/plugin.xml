@@ -21,4 +21,15 @@
         <vcsRootChecker
             implementation="com.teamcomplex.plasticinsight.rider.PlasticRootChecker" />
     </extensions>
+
+    <actions>
+        <group
+            id="PlasticInsight.ContextMenu"
+            class="com.teamcomplex.plasticinsight.rider.PlasticVcsMenu"
+            text="Plastic Insight"
+            popup="true">
+            <reference ref="Vcs.ShowTabbedFileHistory" />
+            <add-to-group group-id="VcsGroup" anchor="last" />
+        </group>
+    </actions>
 </idea-plugin>

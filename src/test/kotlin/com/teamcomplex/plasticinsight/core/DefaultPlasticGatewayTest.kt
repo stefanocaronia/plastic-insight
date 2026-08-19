@@ -264,6 +264,24 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
+    fun `revision lookup accepts a canonical server alias returned by cloud`() {
+        val lookup = fixture("/fixtures/historical-revision/one.xml")
+            .toString(Charsets.UTF_8)
+            .replace("<REPSERVER>example@cloud</REPSERVER>", "<REPSERVER>Sample Organization@unity</REPSERVER>")
+            .toByteArray()
+        val runner = RecordingRunner(success(lookup), success(byteArrayOf(1, 2, 3)))
+        val gateway = gateway(runner)
+
+        assertIs<PlasticResult.Success<ByteArray>>(gateway.revisionContent(sampleRevision()))
+
+        assertEquals(2, runner.invocations.size)
+        assertEquals(
+            "serverpath:/Source Ω/File & Name.cs#cs:42@Sample Repository@example@cloud",
+            runner.invocations[1].arguments[1],
+        )
+    }
+
+    @Test
     fun `ambiguous historical lookup never selects an arbitrary path`() {
         val single = fixture("/fixtures/historical-revision/one.xml").toString(Charsets.UTF_8)
         val revisionNode = single.substringAfter("<PLASTICQUERY>").substringBeforeLast("</PLASTICQUERY>")

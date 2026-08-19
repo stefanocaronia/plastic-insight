@@ -5,17 +5,23 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.AbstractVcs
+import com.intellij.openapi.vcs.ProjectLevelVcsManager
 import com.intellij.openapi.vcs.VcsException
 import com.intellij.openapi.vcs.VcsKey
 import com.intellij.openapi.vcs.VcsType
+import com.intellij.openapi.vcs.actions.StandardVcsGroup
 import com.intellij.openapi.vcs.changes.ChangeProvider
 import com.intellij.openapi.vcs.checkin.CheckinEnvironment
 import com.intellij.openapi.vcs.diff.DiffProvider
+import com.intellij.openapi.vcs.history.VcsHistoryProvider
 import com.intellij.openapi.vcs.rollback.RollbackEnvironment
 import com.teamcomplex.plasticinsight.core.PlasticCancellation
 import com.teamcomplex.plasticinsight.core.PlasticFailure
 import com.teamcomplex.plasticinsight.core.PlasticGateway
 import com.teamcomplex.plasticinsight.core.PlasticGatewayFactory
+import com.teamcomplex.plasticinsight.core.PlasticHistoryPage
+import com.teamcomplex.plasticinsight.core.PlasticHistoryRequest
+import com.teamcomplex.plasticinsight.core.PlasticHistoryRevision
 import com.teamcomplex.plasticinsight.core.PlasticResult
 import com.teamcomplex.plasticinsight.core.PlasticWorkspace
 import com.teamcomplex.plasticinsight.core.PlasticWorkspaceLookup
@@ -29,12 +35,15 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
     private var stopped = false
     private val changeProvider = PlasticChangeProvider(this)
     private val diffProvider = PlasticDiffProvider(this)
+    private val historyProvider = PlasticHistoryProvider(this)
 
     override fun getDisplayName(): String = DISPLAY_NAME
 
     override fun getChangeProvider(): ChangeProvider = changeProvider
 
     override fun getDiffProvider(): DiffProvider = diffProvider
+
+    override fun getVcsHistoryProvider(): VcsHistoryProvider = historyProvider
 
     override fun createCheckinEnvironment(): CheckinEnvironment = PlasticCheckinEnvironment(this)
 
@@ -95,6 +104,36 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
             ),
             "base content",
         )
+    }
+
+    internal fun loadFileHistory(
+        filePath: Path,
+        cancellation: PlasticCancellation,
+    ): PlasticHistoryPage {
+        requireBackgroundThread()
+        val normalizedPath = filePath.toAbsolutePath().normalize()
+        val gateway = gateway()
+        val workspace = workspaceForPath(gateway, normalizedPath, cancellation)
+        if (PlasticRootChecker.isAdministrativePath(workspace.root, normalizedPath)) {
+            throw VcsException("Plastic history is unavailable for workspace metadata.")
+        }
+        return unwrap(
+            gateway.fileHistory(
+                workspace = workspace,
+                filePath = normalizedPath,
+                request = PlasticHistoryRequest(),
+                cancellation = cancellation,
+            ),
+            "file history",
+        )
+    }
+
+    internal fun loadRevisionContent(
+        revision: PlasticHistoryRevision,
+        cancellation: PlasticCancellation,
+    ): ByteArray {
+        requireBackgroundThread()
+        return unwrap(gateway().revisionContent(revision, cancellation), "historical content")
     }
 
     internal fun addPaths(
@@ -161,6 +200,19 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
         }
     }
 
+    private fun workspaceForPath(
+        gateway: PlasticGateway,
+        path: Path,
+        cancellation: PlasticCancellation,
+    ): PlasticWorkspace =
+        when (val lookup = unwrap(
+            gateway.discoverWorkspace(path, cancellation),
+            "workspace discovery",
+        )) {
+            is PlasticWorkspaceLookup.Found -> lookup.workspace
+            PlasticWorkspaceLookup.NotFound -> throw VcsException("The selected path is not in a Plastic workspace.")
+        }
+
     private fun <T> unwrap(
         result: PlasticResult<T>,
         operation: String,
@@ -206,3 +258,9 @@ internal data class PlasticStatusSnapshot(
     val workspace: PlasticWorkspace,
     val status: PlasticWorkspaceStatus,
 )
+
+/** Supplies the standard Plastic Insight submenu in Rider VCS context menus. */
+class PlasticVcsMenu : StandardVcsGroup() {
+    override fun getVcs(project: Project): AbstractVcs? =
+        ProjectLevelVcsManager.getInstance(project).findVcsByName(PlasticVcs.NAME)
+}

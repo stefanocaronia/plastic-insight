@@ -406,7 +406,6 @@ internal class DefaultPlasticGateway(
         if (found.itemId != key.itemId ||
             found.changeset != key.changeset ||
             found.repositoryName != key.repository ||
-            found.server != key.server ||
             !found.path.startsWith('/')
         ) {
             return parseFailure(PlasticOperation.HISTORICAL_PATH, result.state())

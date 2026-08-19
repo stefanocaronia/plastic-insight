@@ -18,7 +18,7 @@ Check-in/commit, update, switch, merge, branches, shelves, locks, and repository
 
 ## Current state
 
-The repository contains the standalone Rider plugin, a platform-independent Plastic command layer, tests, and the product documents. The current Rider adapter provides workspace mapping, local changes, unversioned files, gutter markers, diffs, exact add, and exact rollback. File history remains the next major user-visible increment.
+The repository contains the standalone Rider plugin, a platform-independent Plastic command layer, tests, and the product documents. The current Rider adapter provides workspace mapping, local changes, unversioned files, gutter markers, diffs, exact add, exact rollback, and a bounded native file-history view with on-demand historical content. A Plastic Insight context submenu exposes the standard Rider history action without requiring a keyboard-layout-specific shortcut.
 
 ## Prerequisites
 
@@ -26,6 +26,8 @@ The repository contains the standalone Rider plugin, a platform-independent Plas
 - Unity Version Control / Plastic SCM CLI (`cm.exe`);
 - PowerShell 7 or Windows PowerShell;
 - internet access on the first build so Gradle can resolve build dependencies.
+
+The current distribution is Windows-first and has not yet been validated on Linux. Most parsing and gateway logic is platform-neutral, but executable discovery and packaging still assume the Windows Rider and `cm.exe` layout.
 
 The build resolves Rider in this order:
 
