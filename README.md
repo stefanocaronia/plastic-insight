@@ -18,7 +18,7 @@ Check-in/commit, update, switch, merge, branches, shelves, locks, and repository
 
 ## Current state
 
-The repository contains the standalone Rider plugin, a platform-independent Plastic command layer, tests, and the product documents. The current Rider adapter provides workspace mapping, local changes, unversioned files, gutter markers, diffs, exact add, exact rollback, and a bounded native file-history view with on-demand historical content. A Plastic Insight context submenu exposes the standard Rider history action without requiring a keyboard-layout-specific shortcut.
+The repository contains the standalone Rider plugin, a platform-independent Plastic command layer, tests, and the product documents. The current Rider adapter provides workspace mapping, local changes, unversioned files, gutter markers, diffs, exact add, exact rollback, and a bounded native file-history view with on-demand historical content. A Plastic Insight context submenu exposes the standard Rider history action without requiring a keyboard-layout-specific shortcut. History starts with the 50 newest revisions and can be expanded deliberately to 200 and then 999 rows from its toolbar; Plastic has no history cursor, so each expansion is a fresh bounded query rather than simulated pagination.
 
 ## Prerequisites
 

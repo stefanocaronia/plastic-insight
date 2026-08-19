@@ -109,6 +109,7 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
     internal fun loadFileHistory(
         filePath: Path,
         cancellation: PlasticCancellation,
+        limit: Int = PlasticHistoryRequest.DEFAULT_LIMIT,
     ): PlasticHistoryPage {
         requireBackgroundThread()
         val normalizedPath = filePath.toAbsolutePath().normalize()
@@ -121,7 +122,7 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
             gateway.fileHistory(
                 workspace = workspace,
                 filePath = normalizedPath,
-                request = PlasticHistoryRequest(),
+                request = PlasticHistoryRequest(limit),
                 cancellation = cancellation,
             ),
             "file history",

@@ -223,8 +223,8 @@ internal class DefaultPlasticGateway(
         require(normalizedPath != workspace.root.normalize()) { "The history path must not be the workspace root." }
 
         val generation = cacheGeneration.get()
-        val key = HistoryKey(workspace.id, normalizedPath.toString(), request.limit, generation)
-        historyCache[key]?.let { page ->
+        val key = HistoryKey(workspace.id, normalizedPath.toString(), generation)
+        historyCache[key]?.boundedView(request.limit)?.let { page ->
             return success(
                 operation = PlasticOperation.FILE_HISTORY,
                 origin = PlasticDiagnosticOrigin.CACHE,
@@ -663,6 +663,16 @@ internal class DefaultPlasticGateway(
     private fun historyWeight(key: HistoryKey, page: PlasticHistoryPage): Long =
         128L + textWeight(key.path) + page.revisions.sumOf(::historyRevisionWeight)
 
+    /** Reuses a cached wider prefix, or a known complete history, without retaining overlapping pages. */
+    private fun PlasticHistoryPage.boundedView(limit: Int): PlasticHistoryPage? {
+        if (revisions.size < limit) return takeUnless { hasMore }
+        if (revisions.size == limit) return this
+        return PlasticHistoryPage(
+            revisions = Collections.unmodifiableList(ArrayList(revisions.take(limit))),
+            hasMore = true,
+        )
+    }
+
     private fun historyRevisionWeight(revision: PlasticHistoryRevision): Long =
         256L + textWeight(
             revision.revisionSpec,
@@ -730,7 +740,6 @@ internal class DefaultPlasticGateway(
     private data class HistoryKey(
         val workspaceId: UUID,
         val path: String,
-        val limit: Int,
         val generation: Long,
     )
 

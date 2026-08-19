@@ -6,6 +6,7 @@ import com.teamcomplex.plasticinsight.core.PlasticHistoryEntryKind
 import com.teamcomplex.plasticinsight.core.PlasticHistoryRevision
 import com.teamcomplex.plasticinsight.core.PlasticRevisionDataStatus
 import com.teamcomplex.plasticinsight.core.PlasticRevisionType
+import java.nio.file.Path
 import java.time.OffsetDateTime
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -63,7 +64,12 @@ class PlasticHistoryProviderTest {
             loaded = true
             byteArrayOf(1)
         }
-        val session = PlasticHistorySession(listOf(riderRevision), hasMore = true)
+        val session = PlasticHistorySession(
+            filePath = Path.of("C:\\synthetic\\file.cs"),
+            revisions = listOf(riderRevision),
+            hasMore = true,
+            requestedLimit = 50,
+        )
 
         assertEquals("Moved from synthetic-old.cs", riderRevision.commitMessage)
         assertFalse(riderRevision.isContentAvailable)
@@ -73,6 +79,13 @@ class PlasticHistoryProviderTest {
         assertNull(session.currentRevisionNumber)
         assertFailsWith<VcsException> { riderRevision.loadContent() }
         assertFalse(loaded)
+    }
+
+    @Test
+    fun `history expansion uses only two deliberate bounded steps`() {
+        assertEquals(200, nextHistoryLimit(50))
+        assertEquals(999, nextHistoryLimit(200))
+        assertEquals(999, nextHistoryLimit(999))
     }
 
     @Test

@@ -239,6 +239,45 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
+    fun `history expansion replaces the cached prefix and reuses it for smaller views`() {
+        val history = fixture("/fixtures/history/representative.xml")
+        val runner = RecordingRunner(success(history), success(history))
+        val gateway = gateway(runner)
+        val file = Path.of("C:\\samples\\Source Ω\\File & Name.cs")
+
+        val initial = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway.fileHistory(sampleWorkspace, file, PlasticHistoryRequest(limit = 2)),
+        )
+        val expanded = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway.fileHistory(sampleWorkspace, file, PlasticHistoryRequest(limit = 4)),
+        )
+        val reused = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway.fileHistory(sampleWorkspace, file, PlasticHistoryRequest(limit = 3)),
+        )
+
+        assertEquals(2, initial.value.revisions.size)
+        assertEquals(4, expanded.value.revisions.size)
+        assertEquals(3, reused.value.revisions.size)
+        assertTrue(reused.value.hasMore)
+        assertEquals(PlasticDiagnosticOrigin.CACHE, reused.diagnostic.origin)
+        assertEquals(listOf("--limit=3", "--limit=5"), runner.invocations.map { it.arguments.last() })
+    }
+
+    @Test
+    fun `maximum history view keeps its lookahead inside the parser bound`() {
+        val runner = RecordingRunner(success(fixture("/fixtures/history/representative.xml")))
+        val gateway = gateway(runner)
+
+        gateway.fileHistory(
+            sampleWorkspace,
+            Path.of("C:\\samples\\Source Ω\\File & Name.cs"),
+            PlasticHistoryRequest(limit = PlasticHistoryRequest.MAX_LIMIT),
+        )
+
+        assertEquals("--limit=1000", runner.invocations.single().arguments.last())
+    }
+
+    @Test
     fun `revision content resolves the historical path and caches defensive bytes`() {
         val raw = byteArrayOf(0, 0x80.toByte(), 0xff.toByte())
         val expected = raw.copyOf()
@@ -277,6 +316,23 @@ class DefaultPlasticGatewayTest {
         assertEquals(2, runner.invocations.size)
         assertEquals(
             "serverpath:/Source Ω/File & Name.cs#cs:42@Sample Repository@example@cloud",
+            runner.invocations[1].arguments[1],
+        )
+    }
+
+    @Test
+    fun `revision content follows item identity to its historical path after a rename`() {
+        val lookup = fixture("/fixtures/historical-revision/one.xml")
+            .toString(Charsets.UTF_8)
+            .replace("/Source Ω/File &amp; Name.cs", "/Legacy Folder/Old Name.cs")
+            .toByteArray()
+        val runner = RecordingRunner(success(lookup), success(byteArrayOf(1, 2, 3)))
+        val gateway = gateway(runner)
+
+        assertIs<PlasticResult.Success<ByteArray>>(gateway.revisionContent(sampleRevision()))
+
+        assertEquals(
+            "serverpath:/Legacy Folder/Old Name.cs#cs:42@Sample Repository@example@cloud",
             runner.invocations[1].arguments[1],
         )
     }

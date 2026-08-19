@@ -1,8 +1,11 @@
 package com.teamcomplex.plasticinsight.rider
 
 import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.vcs.FilePath
 import com.intellij.openapi.vcs.RepositoryLocation
+import com.intellij.openapi.vcs.VcsDataKeys
 import com.intellij.openapi.vcs.VcsException
 import com.intellij.openapi.vcs.history.DiffFromHistoryHandler
 import com.intellij.openapi.vcs.history.VcsAbstractHistorySession
@@ -17,21 +20,27 @@ import com.intellij.ui.EditorNotificationPanel
 import com.intellij.util.ui.ColumnInfo
 import com.teamcomplex.plasticinsight.core.PlasticHistoryChangeset
 import com.teamcomplex.plasticinsight.core.PlasticHistoryEntryKind
+import com.teamcomplex.plasticinsight.core.PlasticHistoryRequest
 import com.teamcomplex.plasticinsight.core.PlasticHistoryRevision
 import com.teamcomplex.plasticinsight.core.PlasticRevisionDataStatusKind
 import com.teamcomplex.plasticinsight.core.PlasticRevisionTypeKind
 import java.nio.file.Path
 import java.time.Instant
 import java.util.Date
+import java.util.concurrent.atomic.AtomicReference
 import javax.swing.JComponent
 
 /** Maps bounded Plastic history onto Rider's standard history and diff UI. */
 internal class PlasticHistoryProvider(
     private val vcs: PlasticVcs,
 ) : VcsHistoryProvider {
+    private val requestedExpansion = AtomicReference<HistoryExpansionRequest?>(null)
+
     override fun createSessionFor(filePath: FilePath): VcsHistorySession {
-        val page = vcs.loadFileHistory(filePath.nioPath(), vcs.currentCancellation())
-        return PlasticHistorySession(page.revisions.map(::toFileRevision), page.hasMore)
+        val path = filePath.nioPath()
+        val limit = consumeRequestedLimit(path)
+        val page = vcs.loadFileHistory(path, vcs.currentCancellation(), limit)
+        return PlasticHistorySession(path, page.revisions.map(::toFileRevision), page.hasMore, limit)
     }
 
     override fun reportAppendableHistory(
@@ -50,13 +59,17 @@ internal class PlasticHistoryProvider(
             ?.takeIf { it.hasMore }
             ?.let {
                 EditorNotificationPanel(EditorNotificationPanel.Status.Info).apply {
-                    text("Showing the ${it.revisionList.size} most recent Plastic revisions.")
+                    text(
+                        "Showing the ${it.revisionList.size} most recent Plastic revisions. " +
+                            "Use Load More Revisions in the toolbar to expand this bounded view.",
+                    )
                 }
             }
         return VcsDependentHistoryComponents(ColumnInfo.EMPTY_ARRAY, null, null, notification)
     }
 
-    override fun getAdditionalActions(refresher: Runnable): Array<AnAction> = emptyArray()
+    override fun getAdditionalActions(refresher: Runnable): Array<AnAction> =
+        arrayOf(LoadMoreRevisionsAction(refresher))
 
     override fun isDateOmittable(): Boolean = false
 
@@ -74,23 +87,72 @@ internal class PlasticHistoryProvider(
             vcs.loadRevisionContent(revision, vcs.currentCancellation())
         }
 
+    private fun consumeRequestedLimit(path: Path): Int {
+        while (true) {
+            val request = requestedExpansion.get() ?: return INITIAL_HISTORY_LIMIT
+            if (request.path != path) return INITIAL_HISTORY_LIMIT
+            if (requestedExpansion.compareAndSet(request, null)) return request.limit
+        }
+    }
+
+    private inner class LoadMoreRevisionsAction(
+        private val refresher: Runnable,
+    ) : DumbAwareAction("Load More Revisions") {
+        override fun actionPerformed(event: AnActionEvent) {
+            val session = event.getData(VcsDataKeys.HISTORY_SESSION) as? PlasticHistorySession ?: return
+            if (!session.hasMore) return
+            requestedExpansion.set(
+                HistoryExpansionRequest(session.filePath, nextHistoryLimit(session.requestedLimit)),
+            )
+            refresher.run()
+        }
+
+        override fun update(event: AnActionEvent) {
+            val session = event.getData(VcsDataKeys.HISTORY_SESSION) as? PlasticHistorySession
+            if (session == null || !session.hasMore || session.requestedLimit >= PlasticHistoryRequest.MAX_LIMIT) {
+                event.presentation.isEnabledAndVisible = false
+                return
+            }
+            val nextLimit = nextHistoryLimit(session.requestedLimit)
+            event.presentation.isEnabledAndVisible = true
+            event.presentation.text = "Load Up to $nextLimit Revisions"
+        }
+    }
+
     private fun FilePath.nioPath(): Path = ioFile.toPath().toAbsolutePath().normalize()
 }
 
 internal class PlasticHistorySession(
+    val filePath: Path,
     revisions: List<VcsFileRevision>,
     val hasMore: Boolean,
+    val requestedLimit: Int,
 ) : VcsAbstractHistorySession(revisions) {
     override fun calcCurrentRevisionNumber(): VcsRevisionNumber? = null
 
     override fun copy(): VcsHistorySession =
-        PlasticHistorySession(ArrayList(revisionList), hasMore)
+        PlasticHistorySession(filePath, ArrayList(revisionList), hasMore, requestedLimit)
 
     override fun isContentAvailable(revision: VcsFileRevision): Boolean =
         (revision as? PlasticVcsFileRevision)?.isContentAvailable == true
 
     override fun hasLocalSource(): Boolean = true
 }
+
+internal fun nextHistoryLimit(currentLimit: Int): Int =
+    when {
+        currentLimit < EXTENDED_HISTORY_LIMIT -> EXTENDED_HISTORY_LIMIT
+        currentLimit < PlasticHistoryRequest.MAX_LIMIT -> PlasticHistoryRequest.MAX_LIMIT
+        else -> PlasticHistoryRequest.MAX_LIMIT
+    }
+
+private data class HistoryExpansionRequest(
+    val path: Path,
+    val limit: Int,
+)
+
+private const val INITIAL_HISTORY_LIMIT = PlasticHistoryRequest.DEFAULT_LIMIT
+private const val EXTENDED_HISTORY_LIMIT = 200
 
 internal class PlasticVcsFileRevision(
     private val revision: PlasticHistoryRevision,
