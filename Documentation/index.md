@@ -13,6 +13,7 @@ updated: 2026-11-11
 
 ## Project Operations
 
+- [Project Structure](structure.md) — what each folder and package holds, what it depends on, and where new code goes.
 - [Releasing](Releasing.md) — versioning, signing, the tag workflow, GitHub Releases, and JetBrains Marketplace uploads.
 - Local agent handoff: `.agents/instructions.md` (when present) — canonical local context, safety rules, verified command contracts, build instructions, and next steps for AI assistants.
 
