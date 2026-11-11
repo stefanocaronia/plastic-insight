@@ -1,11 +1,11 @@
 package com.teamcomplex.plasticinsight.rider
 
 import com.intellij.openapi.vcs.VcsException
-import com.teamcomplex.plasticinsight.core.PlasticHistoryChangeset
-import com.teamcomplex.plasticinsight.core.PlasticHistoryEntryKind
-import com.teamcomplex.plasticinsight.core.PlasticHistoryRevision
-import com.teamcomplex.plasticinsight.core.PlasticRevisionDataStatus
-import com.teamcomplex.plasticinsight.core.PlasticRevisionType
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryChangeset
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryRevision
+import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatus
+import com.teamcomplex.plasticinsight.core.history.PlasticRevisionType
 import java.nio.file.Path
 import java.time.OffsetDateTime
 import kotlin.test.Test

@@ -1,7 +1,7 @@
 package com.teamcomplex.plasticinsight.rider
 
-import com.teamcomplex.plasticinsight.core.PlasticPendingChange
-import com.teamcomplex.plasticinsight.core.PlasticStatusCode
+import com.teamcomplex.plasticinsight.core.status.PlasticPendingChange
+import com.teamcomplex.plasticinsight.core.status.PlasticStatusCode
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -15,17 +15,17 @@ import com.intellij.openapi.vcs.checkin.CheckinEnvironment
 import com.intellij.openapi.vcs.diff.DiffProvider
 import com.intellij.openapi.vcs.history.VcsHistoryProvider
 import com.intellij.openapi.vcs.rollback.RollbackEnvironment
-import com.teamcomplex.plasticinsight.core.PlasticCancellation
 import com.teamcomplex.plasticinsight.core.PlasticFailure
 import com.teamcomplex.plasticinsight.core.PlasticGateway
 import com.teamcomplex.plasticinsight.core.PlasticGatewayFactory
 import com.teamcomplex.plasticinsight.core.PlasticHistoryPage
 import com.teamcomplex.plasticinsight.core.PlasticHistoryRequest
-import com.teamcomplex.plasticinsight.core.PlasticHistoryRevision
 import com.teamcomplex.plasticinsight.core.PlasticResult
-import com.teamcomplex.plasticinsight.core.PlasticWorkspace
 import com.teamcomplex.plasticinsight.core.PlasticWorkspaceLookup
-import com.teamcomplex.plasticinsight.core.PlasticWorkspaceStatus
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryRevision
+import com.teamcomplex.plasticinsight.core.process.PlasticCancellation
+import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
+import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspace
 import java.nio.file.Path
 
 /** Thin Rider boundary over the synchronous, Rider-independent gateway. */

@@ -19,12 +19,12 @@ import com.intellij.openapi.vcs.history.VcsRevisionNumber
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.util.ui.ColumnInfo
-import com.teamcomplex.plasticinsight.core.PlasticHistoryChangeset
-import com.teamcomplex.plasticinsight.core.PlasticHistoryEntryKind
 import com.teamcomplex.plasticinsight.core.PlasticHistoryRequest
-import com.teamcomplex.plasticinsight.core.PlasticHistoryRevision
-import com.teamcomplex.plasticinsight.core.PlasticRevisionDataStatusKind
-import com.teamcomplex.plasticinsight.core.PlasticRevisionTypeKind
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryChangeset
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryRevision
+import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatusKind
+import com.teamcomplex.plasticinsight.core.history.PlasticRevisionTypeKind
 import java.nio.file.Path
 import java.time.Instant
 import java.util.Date

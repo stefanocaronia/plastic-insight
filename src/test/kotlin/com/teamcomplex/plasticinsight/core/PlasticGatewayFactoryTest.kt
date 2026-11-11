@@ -1,5 +1,7 @@
 package com.teamcomplex.plasticinsight.core
 
+import com.teamcomplex.plasticinsight.core.process.PlasticProcessRunner
+import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspaceLocator
 import java.nio.file.Path
 import java.nio.file.Files
 import kotlin.test.Test

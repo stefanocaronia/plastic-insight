@@ -1,5 +1,9 @@
 package com.teamcomplex.plasticinsight.core
 
+import com.teamcomplex.plasticinsight.core.cli.PlasticCli
+import com.teamcomplex.plasticinsight.core.process.JdkPlasticProcessRunner
+import com.teamcomplex.plasticinsight.core.process.PlasticProcessRunner
+import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspaceLocator
 import java.io.IOException
 import java.nio.file.Path
 import java.time.Duration

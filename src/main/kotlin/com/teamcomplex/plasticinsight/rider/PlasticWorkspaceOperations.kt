@@ -87,7 +87,7 @@ private data class WorkspaceOperationResult(
 private fun runWorkspaceOperation(
     vcs: PlasticVcs,
     files: List<FilePath>,
-    operation: (Path, Collection<Path>, com.teamcomplex.plasticinsight.core.PlasticCancellation) -> Unit,
+    operation: (Path, Collection<Path>, com.teamcomplex.plasticinsight.core.process.PlasticCancellation) -> Unit,
     checkCanceled: () -> Unit = {},
 ): WorkspaceOperationResult {
     val manager = ProjectLevelVcsManager.getInstance(vcs.project)

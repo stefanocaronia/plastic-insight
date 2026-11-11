@@ -11,7 +11,7 @@ import com.intellij.openapi.vcs.diff.ItemLatestState
 import com.intellij.openapi.vcs.history.VcsRevisionNumber
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.vcsUtil.VcsUtil
-import com.teamcomplex.plasticinsight.core.PlasticStatusCode
+import com.teamcomplex.plasticinsight.core.status.PlasticStatusCode
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 

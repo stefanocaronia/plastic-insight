@@ -1,5 +1,9 @@
 package com.teamcomplex.plasticinsight.core
 
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryRevision
+import com.teamcomplex.plasticinsight.core.process.PlasticCancellation
+import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
+import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspace
 import java.nio.file.Path
 
 sealed interface PlasticWorkspaceLookup {

@@ -11,9 +11,9 @@ import com.intellij.openapi.vcs.changes.CurrentContentRevision
 import com.intellij.openapi.vcs.changes.VcsDirtyScope
 import com.intellij.openapi.vcs.history.VcsRevisionNumber
 import com.intellij.vcsUtil.VcsUtil
-import com.teamcomplex.plasticinsight.core.PlasticCancellation
-import com.teamcomplex.plasticinsight.core.PlasticPendingChange
-import com.teamcomplex.plasticinsight.core.PlasticStatusCode
+import com.teamcomplex.plasticinsight.core.process.PlasticCancellation
+import com.teamcomplex.plasticinsight.core.status.PlasticPendingChange
+import com.teamcomplex.plasticinsight.core.status.PlasticStatusCode
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.util.Locale

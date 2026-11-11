@@ -1,5 +1,23 @@
 package com.teamcomplex.plasticinsight.core
 
+import com.teamcomplex.plasticinsight.core.cli.PlasticBinaryResult
+import com.teamcomplex.plasticinsight.core.cli.PlasticCli
+import com.teamcomplex.plasticinsight.core.cli.PlasticTextResult
+import com.teamcomplex.plasticinsight.core.history.PlasticFileHistoryXmlParser
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoricalRevisionLookup
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoricalRevisionXmlParser
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryChangeset
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryRevision
+import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatusKind
+import com.teamcomplex.plasticinsight.core.parsing.PlasticParseException
+import com.teamcomplex.plasticinsight.core.parsing.parseAbsolutePlasticPath
+import com.teamcomplex.plasticinsight.core.process.PlasticCancellation
+import com.teamcomplex.plasticinsight.core.status.PlasticStatusParser
+import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
+import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspace
+import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspaceLocator
+import com.teamcomplex.plasticinsight.core.workspace.WorkspaceDiscoveryParser
 import java.io.IOException
 import java.nio.file.Path
 import java.time.Duration

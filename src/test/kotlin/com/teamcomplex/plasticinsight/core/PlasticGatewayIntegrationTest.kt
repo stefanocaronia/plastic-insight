@@ -1,5 +1,9 @@
 package com.teamcomplex.plasticinsight.core
 
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryChangeset
+import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
+import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatusKind
+import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
 import java.nio.file.Path
 import org.junit.Assume.assumeTrue
 import kotlin.test.Test
