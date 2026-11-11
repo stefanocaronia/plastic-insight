@@ -3,6 +3,7 @@ package com.teamcomplex.plasticinsight.rider
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.vcs.FilePath
 import com.intellij.openapi.vcs.RepositoryLocation
@@ -25,9 +26,11 @@ import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
 import com.teamcomplex.plasticinsight.core.history.PlasticHistoryRevision
 import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatusKind
 import com.teamcomplex.plasticinsight.core.history.PlasticRevisionTypeKind
+import java.lang.ref.WeakReference
 import java.nio.file.Path
 import java.time.Instant
 import java.util.Date
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.JComponent
 
@@ -36,12 +39,25 @@ internal class PlasticHistoryProvider(
     private val vcs: PlasticVcs,
 ) : VcsHistoryProvider {
     private val requestedExpansion = AtomicReference<HistoryExpansionRequest?>(null)
+    private val banners = ConcurrentHashMap<Path, WeakReference<EditorNotificationPanel>>()
 
     override fun createSessionFor(filePath: FilePath): VcsHistorySession {
         val path = filePath.nioPath()
         val limit = consumeRequestedLimit(path)
         val page = vcs.loadFileHistory(path, vcs.currentCancellation(), limit)
-        return PlasticHistorySession(path, page.revisions.map(::toFileRevision), page.hasMore, limit)
+        val session = PlasticHistorySession(path, page.revisions.map(::toFileRevision), page.hasMore, limit)
+        val bannerReference = banners[path]
+        val banner = bannerReference?.get()
+
+        if (bannerReference != null && banner == null) {
+            banners.remove(path, bannerReference)
+        }
+
+        if (banner != null) {
+            ApplicationManager.getApplication().invokeLater { applySession(banner, session) }
+        }
+
+        return session
     }
 
     override fun reportAppendableHistory(
@@ -56,16 +72,12 @@ internal class PlasticHistoryProvider(
         session: VcsHistorySession,
         forShortcutRegistration: JComponent,
     ): VcsDependentHistoryComponents {
-        val notification = (session as? PlasticHistorySession)
-            ?.takeIf { it.hasMore }
-            ?.let {
-                EditorNotificationPanel(EditorNotificationPanel.Status.Info).apply {
-                    text(
-                        "Showing the ${it.revisionList.size} most recent Plastic revisions. " +
-                            "Use the download-arrow button in the toolbar to load more.",
-                    )
-                }
-            }
+        val notification = (session as? PlasticHistorySession)?.let {
+            val banner = EditorNotificationPanel(EditorNotificationPanel.Status.Info)
+            banners[it.filePath] = WeakReference(banner)
+            applySession(banner, it)
+            banner
+        }
         return VcsDependentHistoryComponents(ColumnInfo.EMPTY_ARRAY, null, null, notification)
     }
 
@@ -85,6 +97,21 @@ internal class PlasticHistoryProvider(
         PlasticVcsFileRevision(revision) {
             vcs.loadRevisionContent(revision, vcs.currentCancellation())
         }
+
+    private fun applySession(
+        banner: EditorNotificationPanel,
+        session: PlasticHistorySession,
+    ) {
+        val text = historyBannerText(session.revisionList.size, session.hasMore, session.requestedLimit)
+
+        if (text == null) {
+            banner.isVisible = false
+            return
+        }
+
+        banner.text(text)
+        banner.isVisible = true
+    }
 
     private fun consumeRequestedLimit(path: Path): Int {
         while (true) {
@@ -136,6 +163,22 @@ internal class PlasticHistoryProvider(
 
     private fun FilePath.nioPath(): Path = ioFile.toPath().toAbsolutePath().normalize()
 }
+
+/** The banner text for a bounded history view, or null when the whole history is shown. */
+internal fun historyBannerText(
+    shownRevisions: Int,
+    hasMore: Boolean,
+    requestedLimit: Int,
+): String? =
+    when {
+        !hasMore -> null
+
+        requestedLimit < PlasticHistoryRequest.MAX_LIMIT ->
+            "Showing the $shownRevisions most recent Plastic revisions. " +
+                "Use the download-arrow button in the toolbar to load more."
+
+        else -> "Showing the $shownRevisions most recent Plastic revisions. Older revisions are not loaded."
+    }
 
 internal class PlasticHistorySession(
     val filePath: Path,

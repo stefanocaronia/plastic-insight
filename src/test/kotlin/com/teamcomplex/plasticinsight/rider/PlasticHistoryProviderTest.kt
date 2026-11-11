@@ -89,6 +89,32 @@ class PlasticHistoryProviderTest {
     }
 
     @Test
+    fun `a complete history has no banner`() {
+        assertNull(historyBannerText(shownRevisions = 185, hasMore = false, requestedLimit = 200))
+        assertNull(historyBannerText(shownRevisions = 12, hasMore = false, requestedLimit = 50))
+    }
+
+    @Test
+    fun `a bounded view below the maximum names the count and the toolbar action`() {
+        assertEquals(
+            "Showing the 50 most recent Plastic revisions. Use the download-arrow button in the toolbar to load more.",
+            historyBannerText(shownRevisions = 50, hasMore = true, requestedLimit = 50),
+        )
+        assertEquals(
+            "Showing the 200 most recent Plastic revisions. Use the download-arrow button in the toolbar to load more.",
+            historyBannerText(shownRevisions = 200, hasMore = true, requestedLimit = 200),
+        )
+    }
+
+    @Test
+    fun `a bounded view at the maximum limit names the count and does not mention the toolbar action`() {
+        assertEquals(
+            "Showing the 999 most recent Plastic revisions. Older revisions are not loaded.",
+            historyBannerText(shownRevisions = 999, hasMore = true, requestedLimit = 999),
+        )
+    }
+
+    @Test
     fun `checkout archived and directory revisions do not expose retrievable bytes`() {
         assertFalse(
             contentRevision(changeset = PlasticHistoryChangeset.Checkout).hasAvailableContent(),
