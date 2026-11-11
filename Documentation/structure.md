@@ -51,7 +51,7 @@ Package `com.teamcomplex.plasticinsight.core`. Independent of Rider: it runs and
 
 ## `rider`
 
-Package `com.teamcomplex.plasticinsight.rider`. Everything that touches IntelliJ or Rider: `PlasticVcs` and the providers it registers (changes, diff, history, add and rollback), plus the root checker. It calls `core` only through `PlasticGateway`. The classes named in `plugin.xml` (`PlasticVcs`, `PlasticRootChecker`, `PlasticVcsMenu`) cannot move or be renamed without changing `plugin.xml` in the same change.
+Package `com.teamcomplex.plasticinsight.rider`. Everything that touches IntelliJ or Rider: `PlasticVcs` and the providers it registers (changes, diff, history, add and rollback), plus the root checker. It calls `core` only through `PlasticGateway`: `PlasticGatewaySession` owns the project's gateway and turns its typed failures into Rider exceptions. Decisions that do not need the IDE are plain functions next to their provider (`planStatusScopes`, `baselinePath`, `runPerRoot`), so they are tested without a Rider instance. The classes named in `plugin.xml` (`PlasticVcs`, `PlasticRootChecker`, `PlasticVcsMenu`) cannot move or be renamed without changing `plugin.xml` in the same change.
 
 ## Where new code goes
 

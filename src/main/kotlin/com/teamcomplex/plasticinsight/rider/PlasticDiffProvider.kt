@@ -12,6 +12,7 @@ import com.intellij.openapi.vcs.history.VcsRevisionNumber
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.vcsUtil.VcsUtil
 import com.teamcomplex.plasticinsight.core.status.PlasticStatusCode
+import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
@@ -28,15 +29,8 @@ internal class PlasticDiffProvider(
             val path = file.localPath()
             val snapshot = vcs.loadStatus(path, vcs.currentCancellation(), includePrivateFiles = true)
                 ?: return@safely null
-
-            if (snapshot.status.changes.any { change ->
-                    change.matches(path) && change.codes.any(::hasNoControlledRevision)
-                }
-            ) {
-                return@safely null
-            }
-
-            VcsRevisionNumber.Long(snapshot.status.workspaceChangeset)
+            val changeset = snapshot.status.controlledChangeset(path) ?: return@safely null
+            VcsRevisionNumber.Long(changeset)
         }
 
     override fun getLastRevision(file: VirtualFile): ItemLatestState? = null
@@ -69,16 +63,7 @@ internal class PlasticDiffProvider(
             return null
         }
 
-        val pendingChange = snapshot.status.changes.firstOrNull { change -> change.matches(selectedPath) }
-
-        if (pendingChange?.codes?.any { code ->
-                code == PlasticStatusCode.ADDED || hasNoControlledRevision(code)
-            } == true
-        ) {
-            return null
-        }
-
-        val basePath = pendingChange?.oldPath ?: selectedPath
+        val basePath = snapshot.status.baselinePath(selectedPath) ?: return null
         return PlasticBaseContentRevision(
             vcs = vcs,
             snapshot = snapshot,
@@ -105,6 +90,29 @@ internal class PlasticDiffProvider(
     private companion object {
         val LOG: Logger = Logger.getInstance(PlasticDiffProvider::class.java)
     }
+}
+
+/** The workspace changeset when the file has a controlled revision; private and ignored files have none. */
+internal fun PlasticWorkspaceStatus.controlledChangeset(path: Path): Long? {
+    if (changes.any { change -> change.matches(path) && change.codes.any(::hasNoControlledRevision) }) {
+        return null
+    }
+
+    return workspaceChangeset
+}
+
+/** Where a file's baseline lives: its old path for a move, nowhere for added, private or ignored files. */
+internal fun PlasticWorkspaceStatus.baselinePath(path: Path): Path? {
+    val pendingChange = changes.firstOrNull { change -> change.matches(path) }
+
+    if (pendingChange?.codes?.any { code ->
+            code == PlasticStatusCode.ADDED || hasNoControlledRevision(code)
+        } == true
+    ) {
+        return null
+    }
+
+    return pendingChange?.oldPath ?: path
 }
 
 private fun hasNoControlledRevision(code: PlasticStatusCode): Boolean =

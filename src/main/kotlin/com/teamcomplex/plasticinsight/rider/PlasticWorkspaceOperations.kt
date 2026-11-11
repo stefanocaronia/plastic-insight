@@ -10,6 +10,7 @@ import com.intellij.openapi.vcs.rollback.RollbackEnvironment
 import com.intellij.openapi.vcs.rollback.RollbackProgressListener
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.vcsUtil.VcsUtil
+import com.teamcomplex.plasticinsight.core.process.PlasticCancellation
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.util.LinkedHashMap
@@ -81,24 +82,29 @@ internal class PlasticRollbackEnvironment(
 
 private fun rollbackPath(change: Change): FilePath? = change.afterRevision?.file ?: change.beforeRevision?.file
 
-private data class WorkspaceOperationResult(
+internal data class WorkspaceTarget(
+    val path: Path?,
+    val root: Path?,
+)
+
+internal data class WorkspaceOperationResult(
     val succeededPaths: Set<Path>,
     val errors: List<VcsException>,
 )
 
-private fun runWorkspaceOperation(
-    vcs: PlasticVcs,
-    files: List<FilePath>,
-    operation: (Path, Collection<Path>, com.teamcomplex.plasticinsight.core.process.PlasticCancellation) -> Unit,
+/** Runs the operation once per root; a path without a local mapped root is reported and skipped. */
+internal fun runPerRoot(
+    targets: List<WorkspaceTarget>,
+    cancellation: PlasticCancellation,
+    operation: (Path, Collection<Path>, PlasticCancellation) -> Unit,
     checkCanceled: () -> Unit = {},
 ): WorkspaceOperationResult {
-    val manager = ProjectLevelVcsManager.getInstance(vcs.project)
     val grouped = LinkedHashMap<Path, MutableList<Path>>()
     val errors = ArrayList<VcsException>()
 
-    files.distinctBy(FilePath::getPath).forEach { file ->
-        val path = file.toLocalPath()
-        val root = manager.getVcsRootFor(file)?.path?.toLocalPath()
+    targets.forEach { target ->
+        val path = target.path
+        val root = target.root
 
         if (path == null || root == null) {
             errors.add(VcsException("Plastic workspace operation requires a local mapped path."))
@@ -108,7 +114,6 @@ private fun runWorkspaceOperation(
     }
 
     val succeeded = HashSet<Path>()
-    val cancellation = vcs.currentCancellation()
 
     for ((root, paths) in grouped) {
         checkCanceled()
@@ -124,6 +129,19 @@ private fun runWorkspaceOperation(
     }
 
     return WorkspaceOperationResult(succeeded, errors)
+}
+
+private fun runWorkspaceOperation(
+    vcs: PlasticVcs,
+    files: List<FilePath>,
+    operation: (Path, Collection<Path>, PlasticCancellation) -> Unit,
+    checkCanceled: () -> Unit = {},
+): WorkspaceOperationResult {
+    val manager = ProjectLevelVcsManager.getInstance(vcs.project)
+    val targets = files.distinctBy(FilePath::getPath).map { file ->
+        WorkspaceTarget(file.toLocalPath(), manager.getVcsRootFor(file)?.path?.toLocalPath())
+    }
+    return runPerRoot(targets, vcs.currentCancellation(), operation, checkCanceled)
 }
 
 private fun FilePath.toLocalPath(): Path? = if (isNonLocal) null else path.toLocalPath()
