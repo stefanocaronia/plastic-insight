@@ -38,7 +38,7 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
         val interruptState = InterruptState()
         var standardOutputFuture: Future<BoundedOutputCapture>? = null
         var standardErrorFuture: Future<BoundedOutputCapture>? = null
-        var outcome: ProcessOutcome? = null
+        val outcome: ProcessOutcome
         var capturedOutput = EMPTY_CAPTURE
         var capturedError = EMPTY_CAPTURE
 
@@ -81,10 +81,9 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
             }
         }
 
-        val processOutcome = checkNotNull(outcome)
-        val cancelled = processOutcome == ProcessOutcome.CANCELLED ||
-            (processOutcome == ProcessOutcome.COMPLETED && interruptState.observed)
-        val timedOut = processOutcome == ProcessOutcome.TIMED_OUT
+        val cancelled = outcome == ProcessOutcome.CANCELLED ||
+            (outcome == ProcessOutcome.COMPLETED && interruptState.observed)
+        val timedOut = outcome == ProcessOutcome.TIMED_OUT
         return PlasticProcessResult(
             exitCode = if (cancelled || timedOut) null else process.exitValue(),
             standardOutput = capturedOutput.bytes,

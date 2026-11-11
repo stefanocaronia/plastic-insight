@@ -99,7 +99,7 @@ internal class PlasticChangeProvider(
                 val preferred = fallback?.let { status ->
                     preferControlledChange(change.path, change, status.status.changes)
                 } ?: change
-                val preferredSnapshot = if (preferred === change) snapshot else requireNotNull(fallback)
+                val preferredSnapshot = fallback?.takeIf { preferred !== change } ?: snapshot
 
                 if (!reportedPaths.add(preferred.path.normalize())) {
                     continue
@@ -243,7 +243,7 @@ private fun toRiderChange(
         PlasticRiderChangeKind.ADDED -> null
 
         PlasticRiderChangeKind.MOVED -> {
-            val oldPath = requireNotNull(change.oldPath)
+            val oldPath = change.oldPath ?: return null
             PlasticBaseContentRevision(
                 vcs = vcs,
                 snapshot = snapshot,
