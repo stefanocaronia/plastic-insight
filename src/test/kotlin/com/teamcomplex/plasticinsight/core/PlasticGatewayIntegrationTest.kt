@@ -3,11 +3,14 @@ package com.teamcomplex.plasticinsight.core
 import com.teamcomplex.plasticinsight.core.history.PlasticHistoryChangeset
 import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
 import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatusKind
+import com.teamcomplex.plasticinsight.core.history.PlasticRevisionTypeKind
+import com.teamcomplex.plasticinsight.core.history.hasContent
 import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
 import org.junit.Assume.assumeTrue
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class PlasticGatewayIntegrationTest {
@@ -84,6 +87,37 @@ class PlasticGatewayIntegrationTest {
                 it.fileHistory(workspace, file, PlasticHistoryRequest(limit = 10)),
             )
             assertTrue(history.value.revisions.isNotEmpty(), "The moved file unexpectedly has no history.")
+        }
+    }
+
+    @Test
+    fun `reads the oldest available revision of the selected file`() {
+        val configuredFile = System.getenv(TEST_FILE_ENVIRONMENT_VARIABLE)
+        assumeTrue(
+            "$TEST_FILE_ENVIRONMENT_VARIABLE is not configured; skipping the opt-in oldest-revision test.",
+            !configuredFile.isNullOrBlank(),
+        )
+        val file = Path.of(configuredFile).toAbsolutePath().normalize()
+        val gateway = assertIs<PlasticResult.Success<PlasticGateway>>(PlasticGatewayFactory().create()).value
+
+        gateway.use {
+            val lookup = assertIs<PlasticResult.Success<PlasticWorkspaceLookup>>(
+                it.discoverWorkspace(assertNotNull(file.parent, "The selected file has no parent directory.")),
+            )
+            val workspace = assertIs<PlasticWorkspaceLookup.Found>(lookup.value).workspace
+            val history = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+                it.fileHistory(workspace, file, PlasticHistoryRequest(limit = PlasticHistoryRequest.MAX_LIMIT)),
+            )
+            val revision = history.value.revisions.lastOrNull { candidate ->
+                candidate.entryKind == PlasticHistoryEntryKind.CONTENT_REVISION &&
+                    candidate.changeset is PlasticHistoryChangeset.Number &&
+                    candidate.dataStatus?.kind == PlasticRevisionDataStatusKind.AVAILABLE &&
+                    candidate.revisionType?.kind != PlasticRevisionTypeKind.DIRECTORY
+            }
+            assertTrue(revision != null, "The selected file has no available numeric revision.")
+
+            val content = assertIs<PlasticResult.Success<ByteArray>>(it.revisionContent(revision))
+            assertTrue(revision.hasContent(content.value), "The oldest revision's bytes do not match its size and hash.")
         }
     }
 

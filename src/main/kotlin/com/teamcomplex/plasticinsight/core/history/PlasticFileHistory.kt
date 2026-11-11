@@ -97,6 +97,8 @@ data class PlasticHistoryRevision(
     val sizeBytes: Long,
     val hash: String?,
     val hashAlgorithm: String?,
+    /** Server paths the item had before it was moved, taken from the history's move events. */
+    val formerItemPaths: List<String> = emptyList(),
 ) {
     init {
         require(revisionSpec.isNotBlank()) { "The history revision spec must not be blank." }

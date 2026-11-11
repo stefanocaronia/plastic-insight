@@ -19,9 +19,11 @@ import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspace
 import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspaceLocator
 import java.io.IOException
 import java.nio.file.Path
+import java.security.MessageDigest
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.util.ArrayDeque
+import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -516,6 +518,149 @@ class DefaultPlasticGatewayTest {
         assertIs<PlasticResult.Success<ByteArray>>(gateway.baseContent(sampleWorkspace, sampleStatus(), changed.path))
         assertEquals(2, runner.callCount.get())
     }
+
+    @Test
+    fun `revision content older than a rename is read at the former path whose bytes verify`() {
+        val raw = byteArrayOf(4, 5, 6, 7)
+        val runner = RecordingRunner(
+            success(fixture("/fixtures/historical-revision/one.xml")),
+            processResult(exitCode = 1),
+            success(raw),
+        )
+        val gateway = gateway(runner)
+        val revision = renamedRevision(
+            reportedBytes = raw,
+            formerItemPaths = listOf("/Legacy Folder/Old Name.cs", "/Source Ω/File & Name.cs"),
+        )
+
+        val first = assertIs<PlasticResult.Success<ByteArray>>(gateway.revisionContent(revision))
+        val cached = assertIs<PlasticResult.Success<ByteArray>>(gateway.revisionContent(revision))
+
+        assertContentEquals(raw, first.value)
+        assertContentEquals(raw, cached.value)
+        assertEquals(PlasticDiagnosticOrigin.CACHE, cached.diagnostic.origin)
+        assertEquals(listOf("find", "cat", "cat"), runner.invocations.map { it.arguments[0] })
+        assertEquals(
+            "serverpath:/Source Ω/File & Name.cs#cs:42@Sample Repository@example@cloud",
+            runner.invocations[1].arguments[1],
+        )
+        assertEquals(
+            listOf("cm.exe", "cat", "serverpath:/Legacy Folder/Old Name.cs#cs:42@Sample Repository@example@cloud", "--raw"),
+            runner.invocations[2].commandLineWithoutContentFile(),
+        )
+    }
+
+    @Test
+    fun `a former path whose bytes do not verify is discarded and the original rejection is reported`() {
+        val runner = RecordingRunner(
+            success(fixture("/fixtures/historical-revision/one.xml")),
+            processResult(exitCode = 1),
+            success(byteArrayOf(9, 9, 9, 9)),
+        )
+        val gateway = gateway(runner)
+        val revision = renamedRevision(
+            reportedBytes = byteArrayOf(4, 5, 6, 7),
+            formerItemPaths = listOf("/Source Ω/File & Name.cs", "/Legacy Folder/Old Name.cs"),
+        )
+
+        val result = assertIs<PlasticResult.Failure>(gateway.revisionContent(revision))
+
+        assertEquals(PlasticFailure.CommandFailed(1), result.reason)
+        assertEquals(3, runner.invocations.size)
+        assertEquals(
+            "serverpath:/Legacy Folder/Old Name.cs#cs:42@Sample Repository@example@cloud",
+            runner.invocations[2].arguments[1],
+        )
+    }
+
+    @Test
+    fun `a former path that times out is reported instead of the original rejection`() {
+        val runner = RecordingRunner(
+            success(fixture("/fixtures/historical-revision/one.xml")),
+            processResult(exitCode = 1),
+            processResult(timedOut = true),
+            success(byteArrayOf(4, 5, 6, 7)),
+        )
+        val gateway = gateway(runner)
+        val revision = renamedRevision(
+            reportedBytes = byteArrayOf(4, 5, 6, 7),
+            formerItemPaths = listOf("/Legacy Folder/Old Name.cs", "/Older Folder/Old Name.cs"),
+        )
+
+        val result = assertIs<PlasticResult.Failure>(gateway.revisionContent(revision))
+
+        assertEquals(PlasticFailure.TimedOut, result.reason)
+        assertEquals(3, runner.invocations.size)
+    }
+
+    @Test
+    fun `former paths are not tried when the first read timed out`() {
+        val runner = RecordingRunner(
+            success(fixture("/fixtures/historical-revision/one.xml")),
+            processResult(timedOut = true),
+        )
+        val gateway = gateway(runner)
+        val revision = renamedRevision(
+            reportedBytes = byteArrayOf(4, 5, 6, 7),
+            formerItemPaths = listOf("/Legacy Folder/Old Name.cs", "/Source Ω/File & Name.cs"),
+        )
+
+        val result = assertIs<PlasticResult.Failure>(gateway.revisionContent(revision))
+
+        assertEquals(PlasticFailure.TimedOut, result.reason)
+        assertEquals(2, runner.invocations.size)
+    }
+
+    @Test
+    fun `a rejected read of a revision without former paths runs no other command`() {
+        val runner = RecordingRunner(
+            success(fixture("/fixtures/historical-revision/one.xml")),
+            processResult(exitCode = 1),
+        )
+        val gateway = gateway(runner)
+
+        val result = assertIs<PlasticResult.Failure>(gateway.revisionContent(sampleRevision()))
+
+        assertEquals(PlasticFailure.CommandFailed(1), result.reason)
+        assertEquals(2, runner.invocations.size)
+    }
+
+    @Test
+    fun `history attaches the former paths of a move event to the content revisions of the page`() {
+        val file = Path.of("C:\\samples\\Source\\Renamed.cs")
+        val formerPaths = listOf("/Source/Original Name.cs", "/Source/Renamed.cs")
+        val fullRunner = RecordingRunner(success(fixture("/fixtures/history/moved.xml")))
+        val newestRunner = RecordingRunner(success(fixture("/fixtures/history/moved.xml")))
+
+        val full = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway(fullRunner).fileHistory(sampleWorkspace, file, PlasticHistoryRequest(limit = 10)),
+        )
+        val newest = assertIs<PlasticResult.Success<PlasticHistoryPage>>(
+            gateway(newestRunner).fileHistory(sampleWorkspace, file, PlasticHistoryRequest(limit = 1)),
+        )
+
+        assertEquals(
+            listOf(
+                PlasticHistoryEntryKind.CONTENT_REVISION,
+                PlasticHistoryEntryKind.METADATA_EVENT,
+                PlasticHistoryEntryKind.CONTENT_REVISION,
+            ),
+            full.value.revisions.map { it.entryKind },
+        )
+        assertEquals(listOf(formerPaths, emptyList(), formerPaths), full.value.revisions.map { it.formerItemPaths })
+        assertEquals(listOf(formerPaths), newest.value.revisions.map { it.formerItemPaths })
+    }
+
+    private fun renamedRevision(
+        reportedBytes: ByteArray,
+        formerItemPaths: List<String>,
+    ): PlasticHistoryRevision =
+        sampleRevision().copy(
+            sizeBytes = reportedBytes.size.toLong(),
+            hash = Base64.getEncoder().encodeToString(MessageDigest.getInstance("MD5").digest(reportedBytes)),
+            hashAlgorithm = "MD5",
+            formerItemPaths = formerItemPaths,
+        )
 
     private fun gateway(
         runner: PlasticProcessRunner,

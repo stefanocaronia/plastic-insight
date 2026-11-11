@@ -11,6 +11,8 @@ import com.teamcomplex.plasticinsight.core.history.PlasticHistoryChangeset
 import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
 import com.teamcomplex.plasticinsight.core.history.PlasticHistoryRevision
 import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatusKind
+import com.teamcomplex.plasticinsight.core.history.formerItemPaths
+import com.teamcomplex.plasticinsight.core.history.hasContent
 import com.teamcomplex.plasticinsight.core.parsing.PlasticParseException
 import com.teamcomplex.plasticinsight.core.parsing.parseAbsolutePlasticPath
 import com.teamcomplex.plasticinsight.core.process.PlasticCancellation
@@ -231,7 +233,7 @@ internal class DefaultPlasticGateway(
         var query = cached?.query ?: HistoryQuery.WorkspacePath(normalizedPath)
         var result = executeFileHistory(workspace, query, request.limit + 1, token, onFailure = { return it })
 
-        if (query is HistoryQuery.WorkspacePath && result.isPendingMoveCandidate()) {
+        if (query is HistoryQuery.WorkspacePath && result.isCleanRejection()) {
             val status = when (val statusResult = status(workspace, workspace.root, token)) {
                 is PlasticResult.Success -> statusResult.value
                 is PlasticResult.Failure -> null
@@ -264,8 +266,11 @@ internal class DefaultPlasticGateway(
         }
 
         val newestFirst = parsed.revisions.asReversed()
+        val formerPaths = newestFirst.formerItemPaths()
         val page = PlasticHistoryPage(
-            revisions = Collections.unmodifiableList(ArrayList(newestFirst.take(request.limit))),
+            revisions = Collections.unmodifiableList(
+                ArrayList(newestFirst.take(request.limit).withFormerItemPaths(formerPaths)),
+            ),
             hasMore = newestFirst.size > request.limit,
         )
         caches.storeIfCurrent(generation) { caches.histories.put(key, CachedHistory(page, query)) }
@@ -314,7 +319,7 @@ internal class DefaultPlasticGateway(
             }
         }
 
-        val result = runCommand(operation, onFailure = { return it }) {
+        val firstResult = runCommand(operation, onFailure = { return it }) {
             cli.historicalContent(
                 executionDirectory = historicalLookupDirectory,
                 historicalPath = historicalPath,
@@ -324,6 +329,14 @@ internal class DefaultPlasticGateway(
                 cancellation = token,
             )
         }
+
+        val result = if (firstResult.isCleanRejection()) {
+            contentAtFormerPath(revision, historicalPath, key, generation, token, onFailure = { return it })
+                ?: firstResult
+        } else {
+            firstResult
+        }
+
         results.processFailure(operation, result)?.let { return it }
 
         if (token.isCancellationRequested()) {
@@ -436,7 +449,59 @@ internal class DefaultPlasticGateway(
             }
         }
 
-    private fun PlasticBinaryResult.isPendingMoveCandidate(): Boolean =
+    /** The first attempt at a path the item had before a move that is verified or interrupted, or null. */
+    private inline fun contentAtFormerPath(
+        revision: PlasticHistoryRevision,
+        rejectedPath: String,
+        key: RevisionKey,
+        generation: Long,
+        cancellation: PlasticCancellation,
+        onFailure: (PlasticResult.Failure) -> Nothing,
+    ): PlasticBinaryResult? {
+        for (formerPath in revision.formerItemPaths) {
+            if (formerPath == rejectedPath) {
+                continue
+            }
+
+            val attempt = runCommand(PlasticOperation.REVISION_CONTENT, onFailure) {
+                cli.historicalContent(
+                    executionDirectory = historicalLookupDirectory,
+                    historicalPath = formerPath,
+                    changeset = key.changeset,
+                    repository = revision.repository,
+                    server = revision.server,
+                    cancellation = cancellation,
+                )
+            }
+
+            if (attempt.cancelled || attempt.timedOut) {
+                return attempt
+            }
+
+            if (attempt.succeeded && revision.hasContent(attempt.standardOutput)) {
+                caches.storeIfCurrent(generation) { caches.historicalPaths.put(key, formerPath) }
+                return attempt
+            }
+        }
+
+        return null
+    }
+
+    private fun List<PlasticHistoryRevision>.withFormerItemPaths(paths: List<String>): List<PlasticHistoryRevision> {
+        if (paths.isEmpty()) {
+            return this
+        }
+
+        return map { revision ->
+            if (revision.entryKind == PlasticHistoryEntryKind.CONTENT_REVISION) {
+                revision.copy(formerItemPaths = paths)
+            } else {
+                revision
+            }
+        }
+    }
+
+    private fun PlasticBinaryResult.isCleanRejection(): Boolean =
         exitCode == 1 && !timedOut && !cancelled && !standardOutputTruncated && !standardErrorTruncated
 
     private fun PlasticWorkspaceStatus.movedHistoryQuery(

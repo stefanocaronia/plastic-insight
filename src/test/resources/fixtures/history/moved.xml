@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevisionHistoriesResult>
+  <RevisionHistories>
+    <RevisionHistory>
+      <ItemName>C:\samples\Source\Renamed.cs</ItemName>
+      <Revisions>
+        <Revision>
+          <RevisionSpec>C:\samples\Source\Renamed.cs#cs:10</RevisionSpec>
+          <Branch>/main</Branch>
+          <CreationDate>2025-01-02T03:04:05+01:00</CreationDate>
+          <RevisionType>txt</RevisionType>
+          <ChangesetNumber>10</ChangesetNumber>
+          <Owner>developer@example.test</Owner>
+          <Comment>Create</Comment>
+          <Repository>Sample Repository</Repository>
+          <Server>example@cloud</Server>
+          <RepositorySpec>
+            <Server>example@cloud</Server>
+            <Name>Sample Repository</Name>
+          </RepositorySpec>
+          <DataStatus>Available</DataStatus>
+          <ItemPathOrSpec>C:\samples\Source\Renamed.cs</ItemPathOrSpec>
+          <ItemId>501</ItemId>
+          <Size>128</Size>
+          <Hash>AQIDBA==</Hash>
+          <HashAlgorithm>MD5</HashAlgorithm>
+        </Revision>
+        <Revision>
+          <RevisionSpec>C:\samples\Source\Renamed.cs#cs:11</RevisionSpec>
+          <Branch>Moved from /Source/Original Name.cs to /Source/Renamed.cs</Branch>
+          <CreationDate>2025-01-02T04:04:05+01:00</CreationDate>
+          <RevisionType></RevisionType>
+          <ChangesetNumber>11</ChangesetNumber>
+          <Owner>developer@example.test</Owner>
+          <Comment>Rename</Comment>
+          <Repository>Sample Repository</Repository>
+          <Server>example@cloud</Server>
+          <RepositorySpec>
+            <Server>example@cloud</Server>
+            <Name>Sample Repository</Name>
+          </RepositorySpec>
+          <DataStatus></DataStatus>
+          <ItemPathOrSpec></ItemPathOrSpec>
+          <ItemId></ItemId>
+          <Size>0</Size>
+          <Hash></Hash>
+          <HashAlgorithm></HashAlgorithm>
+        </Revision>
+        <Revision>
+          <RevisionSpec>C:\samples\Source\Renamed.cs#cs:12</RevisionSpec>
+          <Branch>/main</Branch>
+          <CreationDate>2025-01-02T05:04:05+01:00</CreationDate>
+          <RevisionType>txt</RevisionType>
+          <ChangesetNumber>12</ChangesetNumber>
+          <Owner>developer@example.test</Owner>
+          <Comment>Edit</Comment>
+          <Repository>Sample Repository</Repository>
+          <Server>example@cloud</Server>
+          <RepositorySpec>
+            <Server>example@cloud</Server>
+            <Name>Sample Repository</Name>
+          </RepositorySpec>
+          <DataStatus>Available</DataStatus>
+          <ItemPathOrSpec>C:\samples\Source\Renamed.cs</ItemPathOrSpec>
+          <ItemId>501</ItemId>
+          <Size>256</Size>
+          <Hash>BQYHCA==</Hash>
+          <HashAlgorithm>MD5</HashAlgorithm>
+        </Revision>
+      </Revisions>
+    </RevisionHistory>
+  </RevisionHistories>
+</RevisionHistoriesResult>
