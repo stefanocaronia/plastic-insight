@@ -148,8 +148,9 @@ class PlasticStatusParser {
         return revisionId.takeIf { it >= 0 }
     }
 
+    /** `cm` prints the percentage with the system's decimal separator, so `95,92%` is as valid as `95.92%`. */
     private fun parseSimilarity(value: String): Double {
-        val similarity = value.removeSuffix("%").toDoubleOrNull()
+        val similarity = value.removeSuffix("%").replace(',', '.').toDoubleOrNull()
             ?: throw PlasticParseException("Plastic status contains invalid move similarity.")
 
         if (similarity !in 0.0..100.0) {

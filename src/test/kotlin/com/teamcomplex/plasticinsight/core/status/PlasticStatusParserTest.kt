@@ -124,6 +124,18 @@ class PlasticStatusParserTest {
     }
 
     @Test
+    fun `reads a move similarity written with a decimal comma or a decimal point`() {
+        val header = record("STATUS", "42", "repository", "server")
+        val withComma = header +
+            record("LM", "95,92%", "C:\\workspace\\old.md", "C:\\workspace\\new.md", "False", "65518", "NO_MERGES")
+        val withPoint = header +
+            record("LM", "95.92%", "C:\\workspace\\old.md", "C:\\workspace\\new.md", "False", "65518", "NO_MERGES")
+
+        assertEquals(95.92, parser.parse(withComma).changes.single().similarityPercent)
+        assertEquals(95.92, parser.parse(withPoint).changes.single().similarityPercent)
+    }
+
+    @Test
     fun `rejects a relative change path`() {
         val output = record("STATUS", "42", "repository", "server") +
             record("CH", "relative\\file.cs", "False", "1", "NO_MERGES")
