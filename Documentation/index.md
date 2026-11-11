@@ -2,7 +2,7 @@
 title: Plastic Insight Documentation
 status: Active
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-11-11
 ---
 
 # Plastic Insight Documentation
@@ -13,6 +13,7 @@ updated: 2026-08-18
 
 ## Project Operations
 
+- [Releasing](Releasing.md) — versioning, signing, the tag workflow, GitHub Releases, and JetBrains Marketplace uploads.
 - Local agent handoff: `.agents/instructions.md` (when present) — canonical local context, safety rules, verified command contracts, build instructions, and next steps for AI assistants.
 
 ## Plans

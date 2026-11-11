@@ -73,6 +73,7 @@ Signing reads `chain.crt` and an unencrypted `private.pem` from the folder named
 ## Documentation
 
 - [Functional specification](Documentation/FunctionalSpecification.md)
+- [Releasing](Documentation/Releasing.md)
 
 ## Unofficial project and trademarks
 
