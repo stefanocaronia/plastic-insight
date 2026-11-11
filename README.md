@@ -27,7 +27,7 @@ Deleting or moving a file remains Rider's normal local filesystem operation, whi
 ## Requirements and compatibility
 
 - Windows with Unity Version Control / Plastic SCM CLI (`cm.exe`);
-- JetBrains Rider 2026.2 (`262.*` platform builds);
+- JetBrains Rider 2026.2 or later (platform build 262+; validated on 2026.2.2, build `262.10315.191`, and 2026.3, build `263.7307.258`);
 - an existing Plastic workspace mapped to **Plastic Insight** in Rider's Version Control settings.
 
 This first release is Windows-only. Linux is not advertised as supported because executable discovery and the development packaging flow have not been validated there. PowerShell is required only when building from source, not when installing the ZIP.
@@ -36,7 +36,7 @@ This first release is Windows-only. Linux is not advertised as supported because
 
 ## Install
 
-1. Download `plastic-insight-0.1.0.zip` from the GitHub Release.
+1. Download the latest `plastic-insight-<version>.zip` from the GitHub Release (0.1.3 or later for Rider 2026.3).
 2. In Rider open **Settings | Plugins**, use the gear menu, and select **Install Plugin from Disk**.
 3. Select the ZIP and restart Rider when requested.
 4. Open **Settings | Version Control** and map the Plastic workspace root to **Plastic Insight**.
@@ -62,7 +62,13 @@ The installable archive is written to `build\distributions`. To launch a disposa
 .\build.ps1 runIde
 ```
 
-Before tagging a release, maintainers run Plugin Verifier locally against the installed Rider SDK. A matching `v*` tag makes GitHub Actions rebuild the plugin, run the project tests and Gradle structure checks, and publish the resulting ZIP as a GitHub Release asset. The workflow can also be started manually; it does not run on every push and does not retain multi-gigabyte Rider SDK caches.
+Before tagging a release, maintainers run Plugin Verifier locally against the installed Rider SDK. Other Rider versions are opt-in, because each one downloads a full IDE:
+
+```powershell
+.\gradlew.bat verifyPlugin -PverifyRiderVersions=2026.2.2
+```
+
+Signing and JetBrains Marketplace publishing read their credentials from the environment (`CERTIFICATE_CHAIN`, `PRIVATE_KEY`, `PRIVATE_KEY_PASSWORD`, `PUBLISH_TOKEN`); nothing is stored in the repository, and `buildPlugin` works without them. A matching `v*` tag makes GitHub Actions rebuild the plugin, run the project tests and Gradle structure checks, and publish the resulting ZIP as a GitHub Release asset. The workflow can also be started manually; it does not run on every push and does not retain multi-gigabyte Rider SDK caches.
 
 ## Documentation
 

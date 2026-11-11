@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.teamcomplex.plasticinsight</id>
     <name>Plastic Insight</name>
-    <vendor>Team Complex</vendor>
+    <vendor email="stefano.caronia@gmail.com" url="https://stefanocaronia.it/">Team Complex</vendor>
 
     <description><![CDATA[
         <p><b>Plastic SCM insight where you code.</b></p>
@@ -13,10 +13,25 @@
             <li>Exact Add to VCS and confirmed Rollback for selected items</li>
         </ul>
         <p>This is a lightweight, inspector-first integration, not a complete Plastic client. Check-in, update, switch, merge, branches, shelves, locks, and administration remain in the Plastic GUI or CLI.</p>
-        <p>Requires Windows, Rider 2026.2, and the Plastic <code>cm.exe</code> CLI.</p>
+        <p>Requires Windows, Rider 2026.2 or later, and the Plastic <code>cm.exe</code> CLI.</p>
         <p><b>Independent and unofficial:</b> Plastic Insight is not sponsored by, affiliated with, endorsed by, or maintained by Unity Technologies or its affiliates, or by JetBrains s.r.o.</p>
         <p>Unity, Unity Version Control, and Plastic SCM are trademarks or registered trademarks of Unity Technologies or its affiliates in the U.S. and elsewhere. JetBrains and JetBrains Rider are trademarks of JetBrains s.r.o. All product names and trademarks belong to their respective owners.</p>
     ]]></description>
+
+    <change-notes><![CDATA[
+        <p><b>0.1.3</b></p>
+        <ul>
+            <li>Fixed lines with emoji or other non-ASCII characters being marked as modified: revision content is now read byte-exact</li>
+        </ul>
+        <p><b>0.1.1</b></p>
+        <ul>
+            <li>Rider 2026.3 support, keeping Rider 2026.2 compatibility</li>
+        </ul>
+        <p><b>0.1.0</b></p>
+        <ul>
+            <li>Change markers in the gutter, Local Changes, baseline diff, bounded file history, Add to VCS and Rollback</li>
+        </ul>
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
