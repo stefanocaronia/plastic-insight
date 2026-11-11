@@ -26,8 +26,7 @@ internal class PlasticDiffProvider(
             }
 
             val path = file.localPath()
-            val snapshot = vcs.loadStatus(path, vcs.currentCancellation(), includePrivateFiles = true)
-                ?: return@safely null
+            val snapshot = loadTrustedStatus(path) ?: return@safely null
             val changeset = snapshot.status.controlledChangeset(path) ?: return@safely null
             VcsRevisionNumber.Long(changeset)
         }
@@ -55,7 +54,7 @@ internal class PlasticDiffProvider(
         }
 
         val selectedPath = selectedFile.localPath()
-        val snapshot = vcs.loadStatus(selectedPath, vcs.currentCancellation(), includePrivateFiles = true) ?: return null
+        val snapshot = loadTrustedStatus(selectedPath) ?: return null
         val currentNumber = VcsRevisionNumber.Long(snapshot.status.workspaceChangeset)
 
         if (expectedRevision != null && expectedRevision != currentNumber) {
@@ -70,6 +69,14 @@ internal class PlasticDiffProvider(
             basePath = basePath,
             revisionNumber = currentNumber,
         )
+    }
+
+    /** The exact status of a path, replaced by the controlled root status when that one knows a move ending there. */
+    private fun loadTrustedStatus(path: Path): PlasticStatusSnapshot? {
+        val snapshot = vcs.loadStatus(path, vcs.currentCancellation(), includePrivateFiles = true) ?: return null
+        return snapshot.preferringControlledMove(path) {
+            vcs.loadStatus(snapshot.workspace.root, vcs.currentCancellation())
+        }
     }
 
     private inline fun <T> safely(action: () -> T?): T? =
@@ -108,6 +115,27 @@ internal fun PlasticWorkspaceStatus.baselinePath(path: Path): Path? {
     }
 
     return pendingChange?.oldPath ?: path
+}
+
+/** The snapshot to trust for a path: the controlled one when it knows a move that the exact probe reported as private. */
+internal fun PlasticStatusSnapshot.preferringControlledMove(
+    path: Path,
+    loadControlled: () -> PlasticStatusSnapshot?,
+): PlasticStatusSnapshot {
+    val reportedPrivate = status.changes.any { change ->
+        change.matches(path) && PlasticStatusCode.PRIVATE in change.codes
+    }
+
+    if (!reportedPrivate) {
+        return this
+    }
+
+    val normalizedPath = path.normalize()
+    val controlled = loadControlled() ?: return this
+    val knowsMove = controlled.status.changes.any { change ->
+        change.isMove && change.path.normalize() == normalizedPath
+    }
+    return if (knowsMove) controlled else this
 }
 
 private fun hasNoControlledRevision(code: PlasticStatusCode): Boolean =

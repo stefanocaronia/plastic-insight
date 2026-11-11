@@ -3,10 +3,13 @@ package com.teamcomplex.plasticinsight.rider
 import com.teamcomplex.plasticinsight.core.status.PlasticPendingChange
 import com.teamcomplex.plasticinsight.core.status.PlasticStatusCode
 import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
+import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspace
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 class PlasticDiffProviderTest {
     @Test
@@ -89,6 +92,72 @@ class PlasticDiffProviderTest {
         assertNull(status.controlledChangeset(FILE))
         assertEquals(FILE, status.baselinePath(FILE))
     }
+
+    @Test
+    fun `a private path keeps the exact snapshot when the controlled status has no move ending there`() {
+        val exact = snapshot(change(PlasticStatusCode.PRIVATE, path = FILE))
+        val controlled = snapshot(
+            change(PlasticStatusCode.LOCALLY_MOVED, path = OTHER_FILE, oldPath = ROOT.resolve("old.cs")),
+        )
+        var controlledLoads = 0
+
+        val trusted = exact.preferringControlledMove(FILE) {
+            controlledLoads++
+            controlled
+        }
+
+        assertSame(exact, trusted)
+        assertEquals(1, controlledLoads)
+    }
+
+    @Test
+    fun `a private move destination trusts the controlled snapshot and its old path`() {
+        val destination = ROOT.resolve("Moved").resolve("file.cs")
+        val exact = snapshot(change(PlasticStatusCode.PRIVATE, path = destination))
+        val controlled = snapshot(
+            change(PlasticStatusCode.LOCALLY_MOVED, path = destination, oldPath = FILE),
+        )
+
+        val trusted = exact.preferringControlledMove(destination) { controlled }
+
+        assertSame(controlled, trusted)
+        assertEquals(FILE, trusted.status.baselinePath(destination))
+        assertEquals(WORKSPACE_CHANGESET, trusted.status.controlledChangeset(destination))
+    }
+
+    @Test
+    fun `a path that is not private keeps the exact snapshot without loading the controlled status`() {
+        val exact = snapshot(change(PlasticStatusCode.CHECKED_OUT, PlasticStatusCode.CHANGED, path = FILE))
+        var controlledLoads = 0
+
+        val trusted = exact.preferringControlledMove(FILE) {
+            controlledLoads++
+            null
+        }
+
+        assertSame(exact, trusted)
+        assertEquals(0, controlledLoads)
+    }
+
+    @Test
+    fun `a private path keeps the exact snapshot when the controlled status is unavailable`() {
+        val exact = snapshot(change(PlasticStatusCode.PRIVATE, path = FILE))
+
+        assertSame(exact, exact.preferringControlledMove(FILE) { null })
+    }
+
+    private fun snapshot(vararg changes: PlasticPendingChange): PlasticStatusSnapshot =
+        PlasticStatusSnapshot(
+            workspace = PlasticWorkspace(
+                name = "synthetic",
+                root = ROOT,
+                machine = "synthetic-machine",
+                id = UUID(0L, 1L),
+                workspaceType = "regular",
+                isDynamic = false,
+            ),
+            status = status(*changes),
+        )
 
     private fun status(vararg changes: PlasticPendingChange): PlasticWorkspaceStatus =
         PlasticWorkspaceStatus(

@@ -95,7 +95,9 @@ internal class PlasticChangeProvider(
 
                 progress.checkCanceled()
                 // Exact move destinations can look private; controlled status is authoritative.
-                val fallback = if (!scope.recursive && change.isRiderUnversioned()) rootFallback(snapshot) else null
+                // An exact probe sees a pending move as a private destination and a locally deleted source.
+                val needsFallback = change.isRiderUnversioned() || change.isRiderLocallyDeleted()
+                val fallback = if (!scope.recursive && needsFallback) rootFallback(snapshot) else null
                 val preferred = fallback?.let { status ->
                     preferControlledChange(change.path, change, status.status.changes)
                 } ?: change
@@ -155,17 +157,28 @@ internal fun PlasticPendingChange.isRiderUnversioned(): Boolean = !isDirectory &
 
 internal fun PlasticPendingChange.isRiderIgnored(): Boolean = PlasticStatusCode.IGNORED in codes
 
+/** A deletion that is not part of a move; an exact probe reports the source of a pending move this way. */
+internal fun PlasticPendingChange.isRiderLocallyDeleted(): Boolean = !isDirectory && PlasticStatusCode.LOCALLY_DELETED in codes && !isMove
+
 internal fun preferControlledChange(
     scope: Path,
     exactChange: PlasticPendingChange,
     controlledChanges: Iterable<PlasticPendingChange>,
 ): PlasticPendingChange =
-    if (!exactChange.isRiderUnversioned()) {
-        exactChange
-    } else {
-        controlledChanges.firstOrNull { change ->
-            !change.isRiderUnversioned() && change.matches(scope)
-        } ?: exactChange
+    when {
+        exactChange.isRiderUnversioned() ->
+            controlledChanges.firstOrNull { change ->
+                !change.isRiderUnversioned() && change.matches(scope)
+            } ?: exactChange
+
+        exactChange.isRiderLocallyDeleted() -> {
+            val normalizedScope = scope.normalize()
+            controlledChanges.firstOrNull { change ->
+                change.isMove && change.oldPath?.normalize() == normalizedScope
+            } ?: exactChange
+        }
+
+        else -> exactChange
     }
 
 internal data class PlasticStatusScope(

@@ -5,6 +5,7 @@ import com.teamcomplex.plasticinsight.core.status.PlasticStatusCode
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -68,6 +69,55 @@ class PlasticChangeProviderTest {
 
         assertEquals(moved, preferControlledChange(destination, private, listOf(moved)))
         assertEquals(private, preferControlledChange(destination, private, emptyList()))
+    }
+
+    @Test
+    fun `a locally deleted old path gives way to the controlled move that started there`() {
+        val source = ROOT.resolve("file.cs")
+        val deleted = change(PlasticStatusCode.LOCALLY_DELETED, path = source)
+        val moved = change(
+            PlasticStatusCode.LOCALLY_MOVED,
+            path = ROOT.resolve("Selection").resolve("file.cs"),
+            oldPath = source,
+        )
+
+        assertEquals(moved, preferControlledChange(source, deleted, listOf(moved)))
+    }
+
+    @Test
+    fun `a locally deleted file stays a deletion when no controlled move started at its path`() {
+        val source = ROOT.resolve("file.cs")
+        val deleted = change(PlasticStatusCode.LOCALLY_DELETED, path = source)
+        val unrelatedMove = change(
+            PlasticStatusCode.LOCALLY_MOVED,
+            path = ROOT.resolve("Selection").resolve("other.cs"),
+            oldPath = ROOT.resolve("other.cs"),
+        )
+
+        assertEquals(deleted, preferControlledChange(source, deleted, emptyList()))
+        assertEquals(deleted, preferControlledChange(source, deleted, listOf(unrelatedMove)))
+    }
+
+    @Test
+    fun `only a plain locally deleted file counts as a Rider local deletion`() {
+        val directory = PlasticPendingChange(
+            codes = setOf(PlasticStatusCode.LOCALLY_DELETED),
+            path = ROOT.resolve("Folder"),
+            oldPath = null,
+            isDirectory = true,
+            revisionId = 7L,
+            similarityPercent = null,
+        )
+        val moved = change(
+            PlasticStatusCode.LOCALLY_DELETED,
+            PlasticStatusCode.LOCALLY_MOVED,
+            oldPath = ROOT.resolve("old.cs"),
+        )
+
+        assertTrue(change(PlasticStatusCode.LOCALLY_DELETED).isRiderLocallyDeleted())
+        assertFalse(directory.isRiderLocallyDeleted())
+        assertFalse(moved.isRiderLocallyDeleted())
+        assertFalse(change(PlasticStatusCode.CHANGED).isRiderLocallyDeleted())
     }
 
     @Test
