@@ -36,7 +36,7 @@ This first release is Windows-only. Linux is not advertised as supported because
 
 ## Install
 
-1. Download the latest `plastic-insight-<version>.zip` from the GitHub Release (0.1.3 or later for Rider 2026.3).
+1. Download the latest `plastic-insight-<version>-signed.zip` from the GitHub Release (0.1.3 or later for Rider 2026.3; releases up to 0.1.3 ship an unsigned `plastic-insight-<version>.zip`).
 2. In Rider open **Settings | Plugins**, use the gear menu, and select **Install Plugin from Disk**.
 3. Select the ZIP and restart Rider when requested.
 4. Open **Settings | Version Control** and map the Plastic workspace root to **Plastic Insight**.
@@ -68,7 +68,7 @@ Before tagging a release, maintainers run Plugin Verifier locally against the in
 .\gradlew.bat verifyPlugin -PverifyRiderVersions=2026.2.2
 ```
 
-Signing reads `chain.crt` and an unencrypted `private.pem` from the folder named by `PLUGIN_SIGNING_DIR` (or `-PpluginSigningDir=...`); without it, it falls back to `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, and `PRIVATE_KEY_PASSWORD`. JetBrains Marketplace publishing reads `PUBLISH_TOKEN`. Nothing is stored in the repository, and `buildPlugin` works without any of them. Run `signPlugin` and `verifyPluginSignature` as separate Gradle invocations. A matching `v*` tag makes GitHub Actions rebuild the plugin, run the project tests and Gradle structure checks, and publish the resulting ZIP as a GitHub Release asset. The workflow can also be started manually; it does not run on every push and does not retain multi-gigabyte Rider SDK caches.
+Signing reads `chain.crt` and an unencrypted `private.pem` from the folder named by `PLUGIN_SIGNING_DIR` (or `-PpluginSigningDir=...`); without it, it falls back to `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, and `PRIVATE_KEY_PASSWORD`. JetBrains Marketplace publishing reads `PUBLISH_TOKEN`. Nothing is stored in the repository, and `buildPlugin` works without any of them. Run `signPlugin` and `verifyPluginSignature` as separate Gradle invocations. A matching `v*` tag makes GitHub Actions rebuild the plugin, run the project tests and Gradle structure checks, sign the archive with the `CERTIFICATE_CHAIN` and `PRIVATE_KEY` repository secrets, verify the signature, and publish the signed ZIP as a GitHub Release asset; a tag without those secrets fails instead of releasing an unsigned archive. The workflow can also be started manually; it does not run on every push and does not retain multi-gigabyte Rider SDK caches.
 
 ## Documentation
 

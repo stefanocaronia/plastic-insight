@@ -40,6 +40,25 @@ jobs:
         shell: pwsh
         run: .\gradlew.bat test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure --no-daemon
 
+      # A tag never releases an unsigned archive; a manual run without the secrets skips signing.
+      - name: Sign and verify signature
+        shell: pwsh
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        run: |
+          if (-not $env:CERTIFICATE_CHAIN -or -not $env:PRIVATE_KEY) {
+            if ($env:GITHUB_REF.StartsWith('refs/tags/')) {
+              throw 'CERTIFICATE_CHAIN and PRIVATE_KEY secrets are required to release a tag.'
+            }
+            Write-Host 'Signing secrets are not available; the archive stays unsigned.'
+            exit 0
+          }
+          .\gradlew.bat signPlugin --no-daemon
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\gradlew.bat verifyPluginSignature --no-daemon
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Upload plugin package
         uses: actions/upload-artifact@v7
         with:
@@ -65,4 +84,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --verify-tag --generate-notes --title "Plastic Insight $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" dist/*-signed.zip --verify-tag --generate-notes --title "Plastic Insight $GITHUB_REF_NAME"
