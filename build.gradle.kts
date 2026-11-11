@@ -32,6 +32,10 @@ val riderBaseline = localRiderHome
     ?.trim()
     ?.toIntOrNull()
     ?: downloadedRiderBaseline
+val signingDirectory = providers.gradleProperty("pluginSigningDir")
+    .orElse(providers.environmentVariable("PLUGIN_SIGNING_DIR"))
+    .orNull
+    ?.let(::file)
 val extraVerifiedRiderVersions = providers.gradleProperty("verifyRiderVersions")
     .orNull
     ?.split(',')
@@ -81,11 +85,17 @@ intellijPlatform {
         }
     }
 
-    // Marketplace credentials come from the environment and are never stored in the repository.
+    // Marketplace credentials are never stored in the repository: they come from a local
+    // folder (chain.crt and an unencrypted private.pem) or from environment variables.
     signing {
-        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
-        privateKey = providers.environmentVariable("PRIVATE_KEY")
-        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+        if (signingDirectory != null) {
+            certificateChainFile = signingDirectory.resolve("chain.crt")
+            privateKeyFile = signingDirectory.resolve("private.pem")
+        } else {
+            certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+            privateKey = providers.environmentVariable("PRIVATE_KEY")
+            password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+        }
     }
 
     publishing {

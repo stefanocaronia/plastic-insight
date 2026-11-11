@@ -68,7 +68,7 @@ Before tagging a release, maintainers run Plugin Verifier locally against the in
 .\gradlew.bat verifyPlugin -PverifyRiderVersions=2026.2.2
 ```
 
-Signing and JetBrains Marketplace publishing read their credentials from the environment (`CERTIFICATE_CHAIN`, `PRIVATE_KEY`, `PRIVATE_KEY_PASSWORD`, `PUBLISH_TOKEN`); nothing is stored in the repository, and `buildPlugin` works without them. A matching `v*` tag makes GitHub Actions rebuild the plugin, run the project tests and Gradle structure checks, and publish the resulting ZIP as a GitHub Release asset. The workflow can also be started manually; it does not run on every push and does not retain multi-gigabyte Rider SDK caches.
+Signing reads `chain.crt` and an unencrypted `private.pem` from the folder named by `PLUGIN_SIGNING_DIR` (or `-PpluginSigningDir=...`); without it, it falls back to `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, and `PRIVATE_KEY_PASSWORD`. JetBrains Marketplace publishing reads `PUBLISH_TOKEN`. Nothing is stored in the repository, and `buildPlugin` works without any of them. Run `signPlugin` and `verifyPluginSignature` as separate Gradle invocations. A matching `v*` tag makes GitHub Actions rebuild the plugin, run the project tests and Gradle structure checks, and publish the resulting ZIP as a GitHub Release asset. The workflow can also be started manually; it does not run on every push and does not retain multi-gigabyte Rider SDK caches.
 
 ## Documentation
 
