@@ -41,7 +41,7 @@ jobs:
         run: .\gradlew.bat test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure --no-daemon
 
       - name: Upload plugin package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: plastic-insight-${{ github.sha }}
           path: build/distributions/*.zip
@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: Download plugin package
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: plastic-insight-${{ github.sha }}
           path: dist
