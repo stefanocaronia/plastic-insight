@@ -41,7 +41,7 @@ Package `com.teamcomplex.plasticinsight.core`. Independent of Rider: it runs and
 
 | Package | Holds | Depends on |
 | --- | --- | --- |
-| `core` | `PlasticGateway` (the only entry point for `rider`), its factory and implementation, `PlasticResult` and `PlasticFailure`, diagnostics, runtime settings, executable resolution, the bounded cache. | every subpackage |
+| `core` | `PlasticGateway` (the only entry point for `rider`) and its factory; `DefaultPlasticGateway` holds the operations, `GatewayCaches` the bounded caches, `GatewayResults` the results and their diagnostics. Also `PlasticResult` and `PlasticFailure`, runtime settings, executable resolution. | every subpackage |
 | `core.process` | One bounded, one-shot process: the invocation, the runner, its result, output capture, cancellation. | nothing |
 | `core.cli` | The `cm` commands: `PlasticCommandBuilder` builds the arguments, `PlasticCli` runs them and returns text or bytes. | `core.process` |
 | `core.parsing` | Helpers shared by the parsers: the XML cursor, Plastic path parsing, `PlasticParseException`. | nothing |
