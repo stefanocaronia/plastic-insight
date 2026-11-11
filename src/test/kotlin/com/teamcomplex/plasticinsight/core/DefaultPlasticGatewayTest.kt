@@ -178,7 +178,7 @@ class DefaultPlasticGatewayTest {
         assertEquals(1, runner.invocations.size)
         assertEquals(
             listOf("cm.exe", "cat", "${sampleRoot.resolve("old.cs")}#cs:42", "--raw"),
-            runner.invocations.single().commandLine(),
+            runner.invocations.single().commandLineWithoutContentFile(),
         )
     }
 
@@ -517,7 +517,7 @@ class DefaultPlasticGatewayTest {
 
         override fun run(invocation: PlasticInvocation): PlasticProcessResult {
             invocations.add(invocation)
-            return results.removeFirst()
+            return results.removeFirst().deliveredAsContentFile(invocation)
         }
     }
 
@@ -533,7 +533,7 @@ class DefaultPlasticGatewayTest {
                 entered.countDown()
                 check(release.await(5, TimeUnit.SECONDS))
             }
-            return result
+            return result.deliveredAsContentFile(invocation)
         }
     }
 

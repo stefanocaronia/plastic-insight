@@ -1,10 +1,12 @@
 package com.teamcomplex.plasticinsight.core
 
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PlasticCliTest {
@@ -144,8 +146,44 @@ class PlasticCliTest {
         assertTrue(result.succeeded)
         assertEquals(
             listOf("cm.exe", "cat", "$basePath#cs:7", "--raw"),
-            runner.lastInvocation?.commandLine(),
+            runner.lastInvocation?.commandLineWithoutContentFile(),
         )
+    }
+
+    @Test
+    fun `revision content comes from the file because stdout is re-encoded by the console`() {
+        val exactBytes = "Log(\"🤝\");".toByteArray(Charsets.UTF_8)
+        var contentFile: Path? = null
+        val runner = PlasticProcessRunner { invocation ->
+            contentFile = invocation.contentFile()
+            Files.write(requireNotNull(contentFile), exactBytes)
+            success(standardOutput = "Log(\"??\");".toByteArray())
+        }
+        val cli = PlasticCli(runner, executable = "cm.exe")
+        val workspaceRoot = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
+
+        val result = cli.workspaceBaseline(workspaceRoot, workspaceRoot.resolve("file.cs"), workspaceChangeset = 7)
+
+        assertContentEquals(exactBytes, result.standardOutput)
+        assertEquals(exactBytes.size.toLong(), result.standardOutputBytesRead)
+        assertFalse(Files.exists(requireNotNull(contentFile).parent))
+    }
+
+    @Test
+    fun `a failed revision command returns no content and leaves no file behind`() {
+        var contentFile: Path? = null
+        val runner = PlasticProcessRunner { invocation ->
+            contentFile = invocation.contentFile()
+            success().copy(exitCode = 1)
+        }
+        val cli = PlasticCli(runner, executable = "cm.exe")
+        val workspaceRoot = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
+
+        val result = cli.workspaceBaseline(workspaceRoot, workspaceRoot.resolve("file.cs"), workspaceChangeset = 7)
+
+        assertFalse(result.succeeded)
+        assertEquals(0, result.standardOutput.size)
+        assertFalse(Files.exists(requireNotNull(contentFile).parent))
     }
 
     @Test
@@ -222,7 +260,7 @@ class PlasticCliTest {
         assertTrue(result.succeeded)
         assertEquals(
             listOf("cm.exe", "cat", "serverpath:/Source/Ω.bin#cs:7@repo@server", "--raw"),
-            runner.lastInvocation?.commandLine(),
+            runner.lastInvocation?.commandLineWithoutContentFile(),
         )
     }
 
@@ -233,7 +271,7 @@ class PlasticCliTest {
 
         override fun run(invocation: PlasticInvocation): PlasticProcessResult {
             lastInvocation = invocation
-            return result
+            return result.deliveredAsContentFile(invocation)
         }
     }
 

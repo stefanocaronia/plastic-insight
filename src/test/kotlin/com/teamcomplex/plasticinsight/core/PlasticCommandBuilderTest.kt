@@ -192,10 +192,12 @@ class PlasticCommandBuilderTest {
             errorOutputLimitBytes = 512,
         )
 
-        val invocation = builder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset = 42)
+        val outputFile = absoluteTestPath("content with spaces", "revision")
+
+        val invocation = builder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset = 42, outputFile)
 
         assertEquals(
-            listOf("cm.exe", "cat", "$basePath#cs:42", "--raw"),
+            listOf("cm.exe", "cat", "$basePath#cs:42", "--raw", "--file=$outputFile"),
             invocation.commandLine(),
         )
         assertEquals(workspaceRoot, invocation.workingDirectory)
@@ -212,6 +214,7 @@ class PlasticCommandBuilderTest {
                 workspaceRoot = absoluteTestPath("workspace"),
                 basePath = absoluteTestPath("other workspace", "file.txt"),
                 workspaceChangeset = 42,
+                outputFile = absoluteTestPath("revision"),
             )
         }
     }
@@ -226,6 +229,22 @@ class PlasticCommandBuilderTest {
                 workspaceRoot = workspaceRoot,
                 basePath = workspaceRoot.resolve("file.txt"),
                 workspaceChangeset = -1,
+                outputFile = absoluteTestPath("revision"),
+            )
+        }
+    }
+
+    @Test
+    fun `revision content rejects a relative output file`() {
+        val workspaceRoot = absoluteTestPath("workspace")
+        val builder = PlasticCommandBuilder()
+
+        assertFailsWith<IllegalArgumentException> {
+            builder.workspaceBaseline(
+                workspaceRoot = workspaceRoot,
+                basePath = workspaceRoot.resolve("file.txt"),
+                workspaceChangeset = 42,
+                outputFile = Path.of("revision"),
             )
         }
     }
@@ -395,6 +414,7 @@ class PlasticCommandBuilderTest {
             changeset = 42,
             repository = "Repository",
             server = "server.example.com:8087",
+            outputFile = absoluteTestPath("revision"),
         )
 
         assertEquals(
@@ -403,6 +423,7 @@ class PlasticCommandBuilderTest {
                 "cat",
                 "serverpath:/Source with spaces/Ω.cpp#cs:42@Repository@server.example.com:8087",
                 "--raw",
+                "--file=${absoluteTestPath("revision")}",
             ),
             invocation.commandLine(),
         )

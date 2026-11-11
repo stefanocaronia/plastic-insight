@@ -109,10 +109,15 @@ class PlasticCommandBuilder(
             standardErrorLimitBytes = errorOutputLimitBytes,
         )
 
+    /**
+     * `cm` re-encodes what it prints to the console code page, so the bytes are
+     * exact only in [outputFile]; its size shares the stdout limit.
+     */
     fun workspaceBaseline(
         workspaceRoot: Path,
         basePath: Path,
         workspaceChangeset: Long,
+        outputFile: Path,
     ): PlasticInvocation {
         val (normalizedRoot, normalizedPath) = normalizedWorkspacePath(
             workspaceRoot = workspaceRoot,
@@ -127,6 +132,7 @@ class PlasticCommandBuilder(
                 "cat",
                 "$normalizedPath#cs:$workspaceChangeset",
                 "--raw",
+                contentFileOption(outputFile),
             ),
             workingDirectory = normalizedRoot,
             timeout = timeout,
@@ -240,13 +246,14 @@ class PlasticCommandBuilder(
         )
     }
 
-    /** The execution directory must be outside every Plastic workspace. */
+    /** The execution directory must be outside every Plastic workspace; the bytes land in [outputFile]. */
     fun historicalContent(
         executionDirectory: Path,
         historicalPath: String,
         changeset: Long,
         repository: String,
         server: String,
+        outputFile: Path,
     ): PlasticInvocation {
         require(executionDirectory.isAbsolute) { "The historical content directory must be absolute." }
         require(historicalPath.isNotBlank()) { "The historical server path must not be blank." }
@@ -259,12 +266,17 @@ class PlasticCommandBuilder(
 
         return PlasticInvocation(
             executable = executable,
-            arguments = listOf("cat", revisionSpec, "--raw"),
+            arguments = listOf("cat", revisionSpec, "--raw", contentFileOption(outputFile)),
             workingDirectory = executionDirectory.normalize(),
             timeout = timeout,
             standardOutputLimitBytes = binaryOutputLimitBytes,
             standardErrorLimitBytes = errorOutputLimitBytes,
         )
+    }
+
+    private fun contentFileOption(outputFile: Path): String {
+        require(outputFile.isAbsolute) { "The Plastic content file must be absolute." }
+        return "--file=${outputFile.normalize()}"
     }
 
     private fun normalizedWorkspacePath(

@@ -56,7 +56,9 @@ class PlasticCli(
         workspaceChangeset: Long,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
     ): PlasticBinaryResult =
-        executeBinary(commandBuilder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset), cancellation)
+        executeContent(cancellation) { outputFile ->
+            commandBuilder.workspaceBaseline(workspaceRoot, basePath, workspaceChangeset, outputFile)
+        }
 
     fun add(
         workspaceRoot: Path,
@@ -113,16 +115,16 @@ class PlasticCli(
         server: String,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
     ): PlasticBinaryResult =
-        executeBinary(
+        executeContent(cancellation) { outputFile ->
             commandBuilder.historicalContent(
                 executionDirectory = executionDirectory,
                 historicalPath = historicalPath,
                 changeset = changeset,
                 repository = repository,
                 server = server,
-            ),
-            cancellation,
-        )
+                outputFile = outputFile,
+            )
+        }
 
     fun execute(workingDirectory: Path, vararg arguments: String): PlasticTextResult =
         execute(
@@ -156,6 +158,35 @@ class PlasticCli(
         )
     }
 
+    /** Returns the bytes `cm` wrote to a temporary file in place of its stdout, which is not byte-exact. */
+    private fun executeContent(
+        cancellation: PlasticCancellation,
+        buildInvocation: (Path) -> PlasticInvocation,
+    ): PlasticBinaryResult =
+        withTemporaryContentFile { outputFile ->
+            val invocation = buildInvocation(outputFile)
+            val result = runner.run(invocation, cancellation)
+            val content = if (result.exitCode == 0) {
+                readBoundedContentFile(outputFile, invocation.standardOutputLimitBytes)
+            } else {
+                NO_CONTENT
+            }
+
+            PlasticBinaryResult(
+                invocation = invocation,
+                exitCode = result.exitCode,
+                standardOutput = content.bytes,
+                standardError = result.standardError.toString(outputCharset),
+                duration = result.duration,
+                timedOut = result.timedOut,
+                standardOutputTruncated = result.standardOutputTruncated || content.truncated,
+                standardErrorTruncated = result.standardErrorTruncated,
+                standardOutputBytesRead = content.totalBytesRead,
+                standardErrorBytesRead = result.standardErrorBytesRead,
+                cancelled = result.cancelled,
+            )
+        }
+
     private fun executeBinary(
         invocation: PlasticInvocation,
         cancellation: PlasticCancellation,
@@ -175,5 +206,9 @@ class PlasticCli(
             standardErrorBytesRead = result.standardErrorBytesRead,
             cancelled = result.cancelled,
         )
+    }
+
+    private companion object {
+        val NO_CONTENT = BoundedOutputCapture(byteArrayOf(), 0L, truncated = false)
     }
 }
