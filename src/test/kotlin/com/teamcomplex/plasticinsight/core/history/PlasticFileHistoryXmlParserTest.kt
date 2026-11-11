@@ -121,8 +121,7 @@ class PlasticFileHistoryXmlParserTest {
         }
     }
 
-    private fun fixture(name: String): ByteArray =
-        requireNotNull(javaClass.getResource("/fixtures/history/$name")).readBytes()
+    private fun fixture(name: String): ByteArray = requireNotNull(javaClass.getResource("/fixtures/history/$name")).readBytes()
 
     private class TestCancellation : RuntimeException()
 }

@@ -76,8 +76,7 @@ internal class PlasticRollbackEnvironment(
     }
 }
 
-private fun rollbackPath(change: Change): FilePath? =
-    change.afterRevision?.file ?: change.beforeRevision?.file
+private fun rollbackPath(change: Change): FilePath? = change.afterRevision?.file ?: change.beforeRevision?.file
 
 private data class WorkspaceOperationResult(
     val succeededPaths: Set<Path>,
@@ -120,8 +119,7 @@ private fun runWorkspaceOperation(
     return WorkspaceOperationResult(succeeded, errors)
 }
 
-private fun FilePath.toLocalPath(): Path? =
-    if (isNonLocal) null else path.toLocalPath()
+private fun FilePath.toLocalPath(): Path? = if (isNonLocal) null else path.toLocalPath()
 
 private fun String.toLocalPath(): Path? =
     try {

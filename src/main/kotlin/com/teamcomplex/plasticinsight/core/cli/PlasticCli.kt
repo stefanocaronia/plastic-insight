@@ -37,22 +37,19 @@ class PlasticCli(
         scope: Path,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
         includePrivateFiles: Boolean = false,
-    ): PlasticTextResult =
-        execute(commandBuilder.constrainedStatus(workspaceRoot, scope, includePrivateFiles), cancellation)
+    ): PlasticTextResult = execute(commandBuilder.constrainedStatus(workspaceRoot, scope, includePrivateFiles), cancellation)
 
     fun workspaceStatus(
         workspaceRoot: Path,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
         includePrivateFiles: Boolean = false,
-    ): PlasticTextResult =
-        execute(commandBuilder.workspaceStatus(workspaceRoot, includePrivateFiles), cancellation)
+    ): PlasticTextResult = execute(commandBuilder.workspaceStatus(workspaceRoot, includePrivateFiles), cancellation)
 
     fun workspaceFromPath(
         workingDirectory: Path,
         targetPath: Path,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
-    ): PlasticTextResult =
-        execute(commandBuilder.workspaceDiscovery(workingDirectory, targetPath), cancellation)
+    ): PlasticTextResult = execute(commandBuilder.workspaceDiscovery(workingDirectory, targetPath), cancellation)
 
     fun workspaceBaseline(
         workspaceRoot: Path,
@@ -81,16 +78,14 @@ class PlasticCli(
         filePath: Path,
         limit: Int,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
-    ): PlasticBinaryResult =
-        executeBinary(commandBuilder.fileHistory(workspaceRoot, filePath, limit), cancellation)
+    ): PlasticBinaryResult = executeBinary(commandBuilder.fileHistory(workspaceRoot, filePath, limit), cancellation)
 
     fun fileHistoryForServerSpec(
         workspaceRoot: Path,
         itemSpec: String,
         limit: Int,
         cancellation: PlasticCancellation = PlasticCancellation.NONE,
-    ): PlasticBinaryResult =
-        executeBinary(commandBuilder.fileHistoryForServerSpec(workspaceRoot, itemSpec, limit), cancellation)
+    ): PlasticBinaryResult = executeBinary(commandBuilder.fileHistoryForServerSpec(workspaceRoot, itemSpec, limit), cancellation)
 
     fun historicalPathResolution(
         executionDirectory: Path,
@@ -130,7 +125,10 @@ class PlasticCli(
             )
         }
 
-    fun execute(workingDirectory: Path, vararg arguments: String): PlasticTextResult =
+    fun execute(
+        workingDirectory: Path,
+        vararg arguments: String,
+    ): PlasticTextResult =
         execute(
             PlasticInvocation(
                 executable = executable,

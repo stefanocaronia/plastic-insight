@@ -51,6 +51,7 @@ internal class PlasticXmlCursor private constructor(
         while (reader.hasNext()) {
             when (next()) {
                 XMLStreamConstants.START_ELEMENT -> onChild(elementName)
+
                 XMLStreamConstants.END_ELEMENT -> {
                     if (elementName != parentName) {
                         throw PlasticParseException("Plastic XML closed an unexpected element.")
@@ -128,6 +129,7 @@ internal class PlasticXmlCursor private constructor(
         while (reader.hasNext()) {
             when (next()) {
                 XMLStreamConstants.END_DOCUMENT -> return
+
                 XMLStreamConstants.CHARACTERS,
                 XMLStreamConstants.CDATA,
                 XMLStreamConstants.SPACE,

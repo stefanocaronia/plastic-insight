@@ -116,6 +116,7 @@ class PlasticFileHistoryXmlParser(
                 }
 
                 in REVISION_TEXT_FIELDS -> fields.putUnique(child, cursor.readText(child))
+
                 else -> cursor.skipElement()
             }
         }
@@ -196,7 +197,10 @@ class PlasticFileHistoryXmlParser(
             order = PlasticHistoryOrder.OLDEST_FIRST,
         )
 
-    private fun MutableMap<String, String>.putUnique(name: String, value: String) {
+    private fun MutableMap<String, String>.putUnique(
+        name: String,
+        value: String,
+    ) {
         if (put(name, value) != null) {
             throw PlasticParseException("Plastic history contains a duplicate $name field.")
         }

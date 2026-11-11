@@ -164,8 +164,7 @@ class PlasticExecutableResolverTest {
             isRegularFile = { path -> path.normalize() in existing },
         )
 
-    private fun commonExecutable(programFiles: Path): Path =
-        programFiles.resolve("PlasticSCM5").resolve("client").resolve("cm.exe")
+    private fun commonExecutable(programFiles: Path): Path = programFiles.resolve("PlasticSCM5").resolve("client").resolve("cm.exe")
 
     private fun absoluteTestPath(vararg parts: String): Path =
         parts.fold(Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()) { path, part ->

@@ -119,8 +119,7 @@ class PlasticHistoricalRevisionXmlParserTest {
         return "<PLASTICQUERY>${revision.repeat(count)}</PLASTICQUERY>".toByteArray(StandardCharsets.UTF_8)
     }
 
-    private fun fixture(name: String): ByteArray =
-        requireNotNull(javaClass.getResource("/fixtures/historical-revision/$name")).readBytes()
+    private fun fixture(name: String): ByteArray = requireNotNull(javaClass.getResource("/fixtures/historical-revision/$name")).readBytes()
 
     private class TestCancellation : RuntimeException()
 }

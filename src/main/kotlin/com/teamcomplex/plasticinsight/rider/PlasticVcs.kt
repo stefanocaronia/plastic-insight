@@ -29,7 +29,9 @@ import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspace
 import java.nio.file.Path
 
 /** Thin Rider boundary over the synchronous, Rider-independent gateway. */
-class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
+class PlasticVcs(
+    project: Project,
+) : AbstractVcs(project, NAME) {
     private val gatewayLock = Any()
     private var gatewayResult: PlasticResult<PlasticGateway>? = null
     private var stopped = false
@@ -164,8 +166,7 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
         return PlasticCancellation { project.isDisposed || indicator?.isCanceled == true }
     }
 
-    internal fun isDispatchThread(): Boolean =
-        ApplicationManager.getApplication()?.isDispatchThread == true
+    internal fun isDispatchThread(): Boolean = ApplicationManager.getApplication()?.isDispatchThread == true
 
     private fun requireBackgroundThread() {
         if (isDispatchThread()) {
@@ -187,10 +188,12 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
         cancellation: PlasticCancellation,
     ): PlasticWorkspace {
         val normalizedRoot = root.toAbsolutePath().normalize()
-        return when (val lookup = unwrap(
-            gateway.discoverWorkspace(normalizedRoot, cancellation),
-            "workspace discovery",
-        )) {
+        return when (
+            val lookup = unwrap(
+                gateway.discoverWorkspace(normalizedRoot, cancellation),
+                "workspace discovery",
+            )
+        ) {
             is PlasticWorkspaceLookup.Found -> lookup.workspace.also { workspace ->
                 if (workspace.root.normalize() != normalizedRoot) {
                     throw VcsException("Plastic returned a different workspace root.")
@@ -206,10 +209,12 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
         path: Path,
         cancellation: PlasticCancellation,
     ): PlasticWorkspace =
-        when (val lookup = unwrap(
-            gateway.discoverWorkspace(path, cancellation),
-            "workspace discovery",
-        )) {
+        when (
+            val lookup = unwrap(
+                gateway.discoverWorkspace(path, cancellation),
+                "workspace discovery",
+            )
+        ) {
             is PlasticWorkspaceLookup.Found -> lookup.workspace
             PlasticWorkspaceLookup.NotFound -> throw VcsException("The selected path is not in a Plastic workspace.")
         }
@@ -239,12 +244,19 @@ class PlasticVcs(project: Project) : AbstractVcs(project, NAME) {
                 VcsException("Plastic $operation failed because its runtime configuration is invalid.")
 
             PlasticFailure.TimedOut -> VcsException("Plastic $operation timed out.")
+
             is PlasticFailure.OutputLimitExceeded -> VcsException("Plastic $operation exceeded its output limit.")
+
             is PlasticFailure.CommandFailed -> VcsException("Plastic $operation failed with exit code ${exitCode ?: "unknown"}.")
+
             PlasticFailure.RevisionUnavailable -> VcsException("The requested Plastic revision is unavailable.")
+
             PlasticFailure.AmbiguousRevision -> VcsException("Plastic returned more than one matching revision.")
+
             PlasticFailure.MalformedOutput -> VcsException("Plastic $operation returned malformed output.")
+
             PlasticFailure.LaunchFailed -> VcsException("Plastic $operation could not start cm.exe.")
+
             PlasticFailure.ExecutionFailed -> VcsException("Plastic $operation could not complete.")
         }
 
@@ -262,6 +274,5 @@ internal data class PlasticStatusSnapshot(
 
 /** Supplies the standard Plastic Insight submenu in Rider VCS context menus. */
 class PlasticVcsMenu : StandardVcsGroup() {
-    override fun getVcs(project: Project): AbstractVcs? =
-        ProjectLevelVcsManager.getInstance(project).findVcsByName(PlasticVcs.NAME)
+    override fun getVcs(project: Project): AbstractVcs? = ProjectLevelVcsManager.getInstance(project).findVcsByName(PlasticVcs.NAME)
 }

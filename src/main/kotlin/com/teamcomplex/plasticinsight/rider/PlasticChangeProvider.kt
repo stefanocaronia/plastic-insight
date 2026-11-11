@@ -57,6 +57,7 @@ internal class PlasticChangeProvider(
             contentRoots = contentRoots,
             everythingDirty = dirtyScope.wasEveryThingDirty(),
         )
+
         fun rootFallback(snapshot: PlasticStatusSnapshot): PlasticStatusSnapshot? {
             val root = snapshot.workspace.root.normalize()
             if (rootFallbacks.containsKey(root)) return rootFallbacks[root]
@@ -116,8 +117,11 @@ internal enum class PlasticRiderChangeKind {
 internal fun PlasticPendingChange.riderKind(): PlasticRiderChangeKind? =
     when {
         isDirectory -> null
+
         PlasticStatusCode.ADDED in codes -> PlasticRiderChangeKind.ADDED
+
         isMove -> PlasticRiderChangeKind.MOVED
+
         PlasticStatusCode.DELETED in codes || PlasticStatusCode.LOCALLY_DELETED in codes ->
             PlasticRiderChangeKind.DELETED
 
@@ -127,11 +131,9 @@ internal fun PlasticPendingChange.riderKind(): PlasticRiderChangeKind? =
         else -> null
     }
 
-internal fun PlasticPendingChange.isRiderUnversioned(): Boolean =
-    !isDirectory && PlasticStatusCode.PRIVATE in codes
+internal fun PlasticPendingChange.isRiderUnversioned(): Boolean = !isDirectory && PlasticStatusCode.PRIVATE in codes
 
-internal fun PlasticPendingChange.isRiderIgnored(): Boolean =
-    PlasticStatusCode.IGNORED in codes
+internal fun PlasticPendingChange.isRiderIgnored(): Boolean = PlasticStatusCode.IGNORED in codes
 
 internal fun preferControlledChange(
     scope: Path,
@@ -215,6 +217,7 @@ private fun toRiderChange(
     val currentFile = VcsUtil.getFilePath(change.path, false)
     val before = when (kind) {
         PlasticRiderChangeKind.ADDED -> null
+
         PlasticRiderChangeKind.MOVED -> {
             val oldPath = requireNotNull(change.oldPath)
             PlasticBaseContentRevision(

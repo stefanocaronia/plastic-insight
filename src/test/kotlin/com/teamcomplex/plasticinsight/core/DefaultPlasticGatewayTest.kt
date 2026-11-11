@@ -110,7 +110,7 @@ class DefaultPlasticGatewayTest {
         val outsideStatus = (
             "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D" +
                 "\u001ECH\u001FD:\\outside\\file.cs\u001FFalse\u001F1\u001FNO_MERGES\u001D"
-            ).toByteArray()
+        ).toByteArray()
         val gateway = gateway(RecordingRunner(success(outsideStatus)))
 
         val result = assertIs<PlasticResult.Failure>(
@@ -125,7 +125,7 @@ class DefaultPlasticGatewayTest {
         val output = (
             "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D" +
                 "\u001ECH\u001F${sampleRoot.resolve("file.cs")}\u001FFalse\u001F7\u001FNO_MERGES\u001D"
-            ).toByteArray()
+        ).toByteArray()
         val runner = RecordingRunner(success(output))
         val gateway = gateway(runner)
 
@@ -146,7 +146,7 @@ class DefaultPlasticGatewayTest {
         val output = (
             "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D\r\n" +
                 "\u001EPR\u001F$file\u001FFalse\u001F-1\u001FNO_MERGES\u001D"
-            ).toByteArray()
+        ).toByteArray()
         val runner = RecordingRunner(success(output))
         val gateway = gateway(runner)
 
@@ -164,7 +164,7 @@ class DefaultPlasticGatewayTest {
             "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D\r\n" +
                 "\u001EPR\u001F$file\u001FFalse\u001F-1\u001FNO_MERGES\u001D\r\n" +
                 "\u001EIG\u001F$ignored\u001FFalse\u001F-1\u001FNO_MERGES\u001D"
-            ).toByteArray()
+        ).toByteArray()
         val rootRunner = RecordingRunner(success(rootOutput))
         val rootResult = assertIs<PlasticResult.Success<PlasticWorkspaceStatus>>(
             gateway(rootRunner).status(sampleWorkspace, sampleRoot, includePrivateFiles = true),
@@ -215,9 +215,12 @@ class DefaultPlasticGatewayTest {
         )
         assertIs<PlasticResult.Success<Unit>>(gateway.undo(sampleWorkspace, listOf(file)))
 
-        assertEquals(listOf("add", "undo"), runner.invocations.mapNotNull { invocation ->
-            invocation.arguments.firstOrNull()?.takeIf { it == "add" || it == "undo" }
-        })
+        assertEquals(
+            listOf("add", "undo"),
+            runner.invocations.mapNotNull { invocation ->
+                invocation.arguments.firstOrNull()?.takeIf { it == "add" || it == "undo" }
+            },
+        )
         assertEquals(4, runner.invocations.size)
     }
 
@@ -289,7 +292,7 @@ class DefaultPlasticGatewayTest {
         val moveStatus = (
             "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D" +
                 "\u001ELM\u001F100%\u001F$oldPath\u001F$currentPath\u001FFalse\u001F501\u001FNO_MERGES\u001D"
-            ).toByteArray()
+        ).toByteArray()
         val history = fixture("/fixtures/history/representative.xml")
             .toString(Charsets.UTF_8)
             .replace(
@@ -318,10 +321,13 @@ class DefaultPlasticGatewayTest {
         assertEquals(currentPath.toString(), runner.invocations[0].arguments[1])
         assertEquals(itemSpec, runner.invocations[2].arguments[1])
         assertEquals(itemSpec, runner.invocations[3].arguments[1])
-        assertEquals(listOf("--limit=3", "--limit=5"), listOf(
-            runner.invocations[2].arguments.last(),
-            runner.invocations[3].arguments.last(),
-        ))
+        assertEquals(
+            listOf("--limit=3", "--limit=5"),
+            listOf(
+                runner.invocations[2].arguments.last(),
+                runner.invocations[3].arguments.last(),
+            ),
+        )
     }
 
     @Test
@@ -565,8 +571,7 @@ class DefaultPlasticGatewayTest {
             isDynamic = false,
         )
 
-        fun success(standardOutput: ByteArray): PlasticProcessResult =
-            processResult(standardOutput = standardOutput)
+        fun success(standardOutput: ByteArray): PlasticProcessResult = processResult(standardOutput = standardOutput)
 
         fun processResult(
             exitCode: Int? = 0,

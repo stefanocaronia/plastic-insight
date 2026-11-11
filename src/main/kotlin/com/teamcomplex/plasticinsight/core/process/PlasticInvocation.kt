@@ -20,10 +20,11 @@ data class PlasticInvocation(
         require(arguments.none { it.indexOf('\u0000') >= 0 }) { "Plastic arguments must not contain NUL characters." }
     }
 
-    fun commandLine(): List<String> = buildList(arguments.size + 1) {
-        add(executable)
-        addAll(arguments)
-    }
+    fun commandLine(): List<String> =
+        buildList(arguments.size + 1) {
+            add(executable)
+            addAll(arguments)
+        }
 
     private companion object {
         const val DEFAULT_STANDARD_OUTPUT_LIMIT_BYTES = 8 * 1024 * 1024

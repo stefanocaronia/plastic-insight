@@ -4,8 +4,8 @@ import com.teamcomplex.plasticinsight.core.history.PlasticHistoryChangeset
 import com.teamcomplex.plasticinsight.core.history.PlasticHistoryEntryKind
 import com.teamcomplex.plasticinsight.core.history.PlasticRevisionDataStatusKind
 import com.teamcomplex.plasticinsight.core.status.PlasticWorkspaceStatus
-import java.nio.file.Path
 import org.junit.Assume.assumeTrue
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertTrue

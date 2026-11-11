@@ -56,6 +56,12 @@ Equivalent commands:
 .\gradlew.bat buildPlugin
 ```
 
+The code style lives in `.editorconfig` and is checked by ktlint in the release workflow. To fix it locally:
+
+```powershell
+.\build.ps1 ktlintFormat
+```
+
 The installable archive is written to `build\distributions`. To launch a disposable Rider instance:
 
 ```powershell

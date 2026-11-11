@@ -1,0 +1,24 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{kt,kts}]
+ktlint_code_style = ktlint_official
+max_line_length = 140
+ktlint_function_signature_body_expression_wrapping = multiline
+ktlint_standard_multiline-expression-wrapping = disabled
+ktlint_standard_string-template-indent = disabled
+ktlint_standard_chain-method-continuation = disabled
+ktlint_standard_when-entry-bracing = disabled

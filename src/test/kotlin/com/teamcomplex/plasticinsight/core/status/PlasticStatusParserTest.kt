@@ -151,6 +151,5 @@ class PlasticStatusParserTest {
             .replace("\\u001D", "\u001D")
     }
 
-    private fun record(vararg fields: String): String =
-        "\u001E${fields.joinToString("\u001F")}\u001D"
+    private fun record(vararg fields: String): String = "\u001E${fields.joinToString("\u001F")}\u001D"
 }

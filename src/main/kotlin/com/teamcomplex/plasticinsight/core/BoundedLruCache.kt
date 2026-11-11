@@ -62,8 +62,7 @@ internal class BoundedLruCache<K : Any, V : Any>(
         iterator.remove()
     }
 
-    private fun removeEntry(key: K): Entry<V>? =
-        entries.remove(key)?.also { removed -> currentWeight -= removed.weight }
+    private fun removeEntry(key: K): Entry<V>? = entries.remove(key)?.also { removed -> currentWeight -= removed.weight }
 
     private data class Entry<V>(
         val value: V,

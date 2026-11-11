@@ -41,8 +41,7 @@ internal class PlasticDiffProvider(
     override fun createFileContent(
         revisionNumber: VcsRevisionNumber,
         selectedFile: VirtualFile,
-    ): ContentRevision? =
-        safely { createBaselineContent(selectedFile, revisionNumber) }
+    ): ContentRevision? = safely { createBaselineContent(selectedFile, revisionNumber) }
 
     override fun createCurrentFileContent(file: VirtualFile): ContentRevision? =
         safely { createBaselineContent(file, expectedRevision = null) }
@@ -88,8 +87,7 @@ internal class PlasticDiffProvider(
             null
         }
 
-    private fun VirtualFile.localPath(): Path =
-        Path.of(path).toAbsolutePath().normalize()
+    private fun VirtualFile.localPath(): Path = Path.of(path).toAbsolutePath().normalize()
 
     private companion object {
         val LOG: Logger = Logger.getInstance(PlasticDiffProvider::class.java)
@@ -106,11 +104,9 @@ internal class PlasticBaseContentRevision(
     private val basePath: Path,
     private val revisionNumber: VcsRevisionNumber,
 ) : ByteBackedContentRevision {
-    override fun getContentAsBytes(): ByteArray =
-        vcs.loadBaseContent(snapshot, basePath, vcs.currentCancellation())
+    override fun getContentAsBytes(): ByteArray = vcs.loadBaseContent(snapshot, basePath, vcs.currentCancellation())
 
-    override fun getContent(): String =
-        String(getContentAsBytes(), file.getCharset(vcs.project)).removePrefix("\uFEFF")
+    override fun getContent(): String = String(getContentAsBytes(), file.getCharset(vcs.project)).removePrefix("\uFEFF")
 
     override fun getFile(): FilePath = file
 

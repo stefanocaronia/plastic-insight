@@ -19,7 +19,6 @@ data class PlasticRuntimeSettings(
     }
 
     companion object {
-        private fun defaultHistoricalLookupDirectory(): Path =
-            Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
+        private fun defaultHistoricalLookupDirectory(): Path = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()
     }
 }

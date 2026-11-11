@@ -146,23 +146,25 @@ class PlasticCommandBuilder(
     fun add(
         workspaceRoot: Path,
         paths: Collection<Path>,
-    ): PlasticInvocation = workspaceMutation(
-        workspaceRoot = workspaceRoot,
-        paths = paths,
-        command = "add",
-        options = listOf("--noinfo"),
-    )
+    ): PlasticInvocation =
+        workspaceMutation(
+            workspaceRoot = workspaceRoot,
+            paths = paths,
+            command = "add",
+            options = listOf("--noinfo"),
+        )
 
     /** Undoes only the explicitly supplied items; the workspace root and recursion are forbidden. */
     fun undo(
         workspaceRoot: Path,
         paths: Collection<Path>,
-    ): PlasticInvocation = workspaceMutation(
-        workspaceRoot = workspaceRoot,
-        paths = paths,
-        command = "undo",
-        options = listOf("--silent"),
-    )
+    ): PlasticInvocation =
+        workspaceMutation(
+            workspaceRoot = workspaceRoot,
+            paths = paths,
+            command = "undo",
+            options = listOf("--silent"),
+        )
 
     fun fileHistory(
         workspaceRoot: Path,
@@ -331,7 +333,10 @@ class PlasticCommandBuilder(
         )
     }
 
-    private fun validatedRepositorySpec(repository: String, server: String): String {
+    private fun validatedRepositorySpec(
+        repository: String,
+        server: String,
+    ): String {
         require(repository.isNotBlank()) { "The Plastic repository must not be blank." }
         require(server.isNotBlank()) { "The Plastic server must not be blank." }
         require((repository + server).none { it == '\u0000' || it == '\r' || it == '\n' || it == '\'' }) {

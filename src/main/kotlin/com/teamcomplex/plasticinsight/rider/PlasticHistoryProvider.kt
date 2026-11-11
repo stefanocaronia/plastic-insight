@@ -69,8 +69,7 @@ internal class PlasticHistoryProvider(
         return VcsDependentHistoryComponents(ColumnInfo.EMPTY_ARRAY, null, null, notification)
     }
 
-    override fun getAdditionalActions(refresher: Runnable): Array<AnAction> =
-        arrayOf(LoadMoreRevisionsAction(refresher))
+    override fun getAdditionalActions(refresher: Runnable): Array<AnAction> = arrayOf(LoadMoreRevisionsAction(refresher))
 
     override fun isDateOmittable(): Boolean = false
 
@@ -80,8 +79,7 @@ internal class PlasticHistoryProvider(
 
     override fun getHistoryDiffHandler(): DiffFromHistoryHandler? = null
 
-    override fun canShowHistoryFor(file: VirtualFile): Boolean =
-        !file.isDirectory && file.isInLocalFileSystem
+    override fun canShowHistoryFor(file: VirtualFile): Boolean = !file.isDirectory && file.isInLocalFileSystem
 
     private fun toFileRevision(revision: PlasticHistoryRevision): VcsFileRevision =
         PlasticVcsFileRevision(revision) {
@@ -99,10 +97,10 @@ internal class PlasticHistoryProvider(
     private inner class LoadMoreRevisionsAction(
         private val refresher: Runnable,
     ) : DumbAwareAction(
-        "Load More Revisions",
-        "Load a larger bounded Plastic history view",
-        AllIcons.Actions.Download,
-    ) {
+            "Load More Revisions",
+            "Load a larger bounded Plastic history view",
+            AllIcons.Actions.Download,
+        ) {
         override fun actionPerformed(event: AnActionEvent) {
             val session = event.getData(VcsDataKeys.HISTORY_SESSION) as? PlasticHistorySession ?: return
             if (!session.hasMore) return
@@ -135,11 +133,9 @@ internal class PlasticHistorySession(
 ) : VcsAbstractHistorySession(revisions) {
     override fun calcCurrentRevisionNumber(): VcsRevisionNumber? = null
 
-    override fun copy(): VcsHistorySession =
-        PlasticHistorySession(filePath, ArrayList(revisionList), hasMore, requestedLimit)
+    override fun copy(): VcsHistorySession = PlasticHistorySession(filePath, ArrayList(revisionList), hasMore, requestedLimit)
 
-    override fun isContentAvailable(revision: VcsFileRevision): Boolean =
-        (revision as? PlasticVcsFileRevision)?.isContentAvailable == true
+    override fun isContentAvailable(revision: VcsFileRevision): Boolean = (revision as? PlasticVcsFileRevision)?.isContentAvailable == true
 
     override fun hasLocalSource(): Boolean = true
 }

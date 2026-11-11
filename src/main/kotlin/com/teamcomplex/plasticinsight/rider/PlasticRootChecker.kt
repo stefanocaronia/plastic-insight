@@ -30,8 +30,7 @@ class PlasticRootChecker : VcsRootChecker() {
     override fun getSupportedVcs(): VcsKey = PlasticVcs.KEY
 
     @Suppress("OVERRIDE_DEPRECATION")
-    override fun isVcsDir(dirName: String): Boolean =
-        dirName.equals(ADMINISTRATIVE_DIRECTORY, ignoreCase = true)
+    override fun isVcsDir(dirName: String): Boolean = dirName.equals(ADMINISTRATIVE_DIRECTORY, ignoreCase = true)
 
     internal companion object {
         private const val ADMINISTRATIVE_DIRECTORY = ".plastic"

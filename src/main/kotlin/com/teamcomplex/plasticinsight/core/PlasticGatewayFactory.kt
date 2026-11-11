@@ -87,8 +87,7 @@ class PlasticGatewayFactory(
         return PlasticResult.Failure(reason, diagnostic)
     }
 
-    private fun elapsedSince(startedAt: Long): Duration =
-        Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
+    private fun elapsedSince(startedAt: Long): Duration = Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
 
     private fun realDirectory(path: Path): Path? =
         try {

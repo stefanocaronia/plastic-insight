@@ -11,8 +11,7 @@ import java.util.concurrent.TimeoutException
 
 /** Runs one bounded process and owns its readers and full process tree. */
 class JdkPlasticProcessRunner : PlasticProcessRunner {
-    override fun run(invocation: PlasticInvocation): PlasticProcessResult =
-        run(invocation, PlasticCancellation.NONE)
+    override fun run(invocation: PlasticInvocation): PlasticProcessResult = run(invocation, PlasticCancellation.NONE)
 
     override fun run(
         invocation: PlasticInvocation,
@@ -217,10 +216,11 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
         runCatching { stream.close() }
     }
 
-    private fun elapsedSince(startedAt: Long): Duration =
-        Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
+    private fun elapsedSince(startedAt: Long): Duration = Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
 
-    private class Deadline(timeout: Duration) {
+    private class Deadline(
+        timeout: Duration,
+    ) {
         private val startedAt = System.nanoTime()
         private val timeoutNanos = try {
             timeout.toNanos()
@@ -228,8 +228,7 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
             Long.MAX_VALUE
         }
 
-        fun remainingNanos(): Long =
-            (timeoutNanos - (System.nanoTime() - startedAt)).coerceAtLeast(0L)
+        fun remainingNanos(): Long = (timeoutNanos - (System.nanoTime() - startedAt)).coerceAtLeast(0L)
     }
 
     private class InterruptState(

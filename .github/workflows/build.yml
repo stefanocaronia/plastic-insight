@@ -38,7 +38,7 @@ jobs:
 
       - name: Test and package
         shell: pwsh
-        run: .\gradlew.bat test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure --no-daemon
+        run: .\gradlew.bat ktlintCheck test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure --no-daemon
 
       # A tag never releases an unsigned archive; a manual run without the secrets skips signing.
       - name: Sign and verify signature

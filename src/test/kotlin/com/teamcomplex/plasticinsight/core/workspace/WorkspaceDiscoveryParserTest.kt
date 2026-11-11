@@ -73,6 +73,5 @@ class WorkspaceDiscoveryParserTest {
         root: String = "C:\\workspace",
         id: String = "11111111-2222-4333-8444-555555555555",
         mode: String = "static",
-    ): String =
-        listOf("workspace", root, "machine", id, "regular", mode).joinToString("\u001F")
+    ): String = listOf("workspace", root, "machine", id, "regular", mode).joinToString("\u001F")
 }

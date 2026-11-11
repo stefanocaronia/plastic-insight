@@ -85,7 +85,10 @@ class PlasticHistoricalRevisionXmlParser(
         }
     }
 
-    private fun MutableMap<String, String>.putUnique(name: String, value: String) {
+    private fun MutableMap<String, String>.putUnique(
+        name: String,
+        value: String,
+    ) {
         if (put(name, value) != null) {
             throw PlasticParseException("Plastic revision lookup contains a duplicate $name field.")
         }

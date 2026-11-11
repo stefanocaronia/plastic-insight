@@ -208,25 +208,27 @@ internal class DefaultPlasticGateway(
         workspace: PlasticWorkspace,
         paths: Collection<Path>,
         cancellation: PlasticCancellation,
-    ): PlasticResult<Unit> = mutateWorkspace(
-        operation = PlasticOperation.ADD,
-        workspace = workspace,
-        paths = paths,
-        cancellation = cancellation,
-        command = cli::add,
-    )
+    ): PlasticResult<Unit> =
+        mutateWorkspace(
+            operation = PlasticOperation.ADD,
+            workspace = workspace,
+            paths = paths,
+            cancellation = cancellation,
+            command = cli::add,
+        )
 
     override fun undo(
         workspace: PlasticWorkspace,
         paths: Collection<Path>,
         cancellation: PlasticCancellation,
-    ): PlasticResult<Unit> = mutateWorkspace(
-        operation = PlasticOperation.UNDO,
-        workspace = workspace,
-        paths = paths,
-        cancellation = cancellation,
-        command = cli::undo,
-    )
+    ): PlasticResult<Unit> =
+        mutateWorkspace(
+            operation = PlasticOperation.UNDO,
+            workspace = workspace,
+            paths = paths,
+            cancellation = cancellation,
+            command = cli::undo,
+        )
 
     override fun fileHistory(
         workspace: PlasticWorkspace,
@@ -564,7 +566,9 @@ internal class DefaultPlasticGateway(
     ): PlasticResult.Failure? =
         when {
             state.cancelled -> cancellationFailure(operation, state)
+
             state.timedOut -> processFailure(operation, state, PlasticFailure.TimedOut)
+
             state.standardOutputTruncated || state.standardErrorTruncated ->
                 processFailure(
                     operation,
@@ -576,6 +580,7 @@ internal class DefaultPlasticGateway(
                 )
 
             state.exitCode != 0 -> processFailure(operation, state, PlasticFailure.CommandFailed(state.exitCode))
+
             else -> null
         }
 
@@ -586,11 +591,13 @@ internal class DefaultPlasticGateway(
     ): PlasticResult.Failure {
         val outcome = when (reason) {
             PlasticFailure.TimedOut -> PlasticDiagnosticOutcome.TIMED_OUT
+
             PlasticFailure.Cancelled,
             PlasticFailure.Disposed,
             -> PlasticDiagnosticOutcome.CANCELLED
 
             is PlasticFailure.OutputLimitExceeded -> PlasticDiagnosticOutcome.TRUNCATED
+
             else -> PlasticDiagnosticOutcome.FAILED
         }
         return failure(operation, state, outcome, reason)
@@ -723,11 +730,15 @@ internal class DefaultPlasticGateway(
             standardErrorBytesRead,
         )
 
-    private fun workspaceWeight(key: Path, workspace: PlasticWorkspace): Long =
-        128L + textWeight(key.toString(), workspace.name, workspace.root.toString(), workspace.machine, workspace.workspaceType)
+    private fun workspaceWeight(
+        key: Path,
+        workspace: PlasticWorkspace,
+    ): Long = 128L + textWeight(key.toString(), workspace.name, workspace.root.toString(), workspace.machine, workspace.workspaceType)
 
-    private fun historyWeight(key: HistoryKey, cached: CachedHistory): Long =
-        128L + textWeight(key.path, cached.query.cacheText) + cached.page.revisions.sumOf(::historyRevisionWeight)
+    private fun historyWeight(
+        key: HistoryKey,
+        cached: CachedHistory,
+    ): Long = 128L + textWeight(key.path, cached.query.cacheText) + cached.page.revisions.sumOf(::historyRevisionWeight)
 
     /** Reuses a cached wider prefix, or a known complete history, without retaining overlapping pages. */
     private fun PlasticHistoryPage.boundedView(limit: Int): PlasticHistoryPage? {
@@ -758,14 +769,11 @@ internal class DefaultPlasticGateway(
             is ContentKey.Revision -> revisionKeyWeight(key.key)
         }
 
-    private fun revisionKeyWeight(key: RevisionKey): Long =
-        96L + textWeight(key.repository, key.server)
+    private fun revisionKeyWeight(key: RevisionKey): Long = 96L + textWeight(key.repository, key.server)
 
-    private fun textWeight(vararg values: String?): Long =
-        values.sumOf { value -> (value?.length ?: 0).toLong() * Char.SIZE_BYTES }
+    private fun textWeight(vararg values: String?): Long = values.sumOf { value -> (value?.length ?: 0).toLong() * Char.SIZE_BYTES }
 
-    private fun elapsedSince(startedAt: Long): Duration =
-        Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
+    private fun elapsedSince(startedAt: Long): Duration = Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
 
     private data class CommandExecution<T>(
         val result: T? = null,
@@ -817,15 +825,20 @@ internal class DefaultPlasticGateway(
     private sealed interface HistoryQuery {
         val cacheText: String
 
-        fun matches(itemName: String, requestedPath: Path): Boolean
+        fun matches(
+            itemName: String,
+            requestedPath: Path,
+        ): Boolean
 
         data class WorkspacePath(
             val path: Path,
         ) : HistoryQuery {
             override val cacheText: String = path.toString()
 
-            override fun matches(itemName: String, requestedPath: Path): Boolean =
-                parseAbsolutePlasticPath(itemName, "history item path") == requestedPath
+            override fun matches(
+                itemName: String,
+                requestedPath: Path,
+            ): Boolean = parseAbsolutePlasticPath(itemName, "history item path") == requestedPath
         }
 
         data class ServerSpec(
@@ -833,7 +846,10 @@ internal class DefaultPlasticGateway(
         ) : HistoryQuery {
             override val cacheText: String = value
 
-            override fun matches(itemName: String, requestedPath: Path): Boolean = itemName == value
+            override fun matches(
+                itemName: String,
+                requestedPath: Path,
+            ): Boolean = itemName == value
         }
     }
 

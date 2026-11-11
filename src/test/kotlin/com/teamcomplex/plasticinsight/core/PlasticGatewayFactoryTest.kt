@@ -2,8 +2,8 @@ package com.teamcomplex.plasticinsight.core
 
 import com.teamcomplex.plasticinsight.core.process.PlasticProcessRunner
 import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspaceLocator
-import java.nio.file.Path
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertIs
 

@@ -43,6 +43,8 @@ val extraVerifiedRiderVersions = providers.gradleProperty("verifyRiderVersions")
     ?.filter(String::isNotEmpty)
     .orEmpty()
 
+val ktlint: Configuration by configurations.creating
+
 dependencies {
     intellijPlatform {
         if (localRiderHome != null) {
@@ -62,6 +64,32 @@ dependencies {
 
     testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.13.2")
+
+    ktlint("com.pinterest.ktlint:ktlint-cli:1.8.0") {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+        }
+    }
+}
+
+// The style lives in .editorconfig; ktlintCheck fails the build, ktlintFormat rewrites the files.
+val ktlintSources = listOf("src/**/*.kt", "*.kts")
+
+tasks.register<JavaExec>("ktlintCheck") {
+    group = "verification"
+    description = "Checks the Kotlin code style."
+    classpath = ktlint
+    mainClass = "com.pinterest.ktlint.Main"
+    args(ktlintSources)
+}
+
+tasks.register<JavaExec>("ktlintFormat") {
+    group = "formatting"
+    description = "Fixes the Kotlin code style."
+    classpath = ktlint
+    mainClass = "com.pinterest.ktlint.Main"
+    jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
+    args(listOf("--format") + ktlintSources)
 }
 
 kotlin {
