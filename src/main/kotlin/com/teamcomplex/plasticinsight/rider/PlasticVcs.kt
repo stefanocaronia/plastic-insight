@@ -35,7 +35,7 @@ class PlasticVcs(
     private val diffProvider = PlasticDiffProvider(this)
     private val historyProvider = PlasticHistoryProvider(this)
 
-    override fun getDisplayName(): String = DISPLAY_NAME
+    override fun getDisplayName(): String = NAME
 
     override fun getChangeProvider(): ChangeProvider = changeProvider
 
@@ -101,7 +101,6 @@ class PlasticVcs(
 
     companion object {
         const val NAME: String = "Plastic Insight"
-        const val DISPLAY_NAME: String = "Plastic Insight"
         val KEY: VcsKey = createKey(NAME)
     }
 }

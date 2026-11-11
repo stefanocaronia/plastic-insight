@@ -1,8 +1,8 @@
 package com.teamcomplex.plasticinsight.core
 
-import com.teamcomplex.plasticinsight.core.cli.PlasticBinaryResult
-import com.teamcomplex.plasticinsight.core.cli.PlasticTextResult
+import com.teamcomplex.plasticinsight.core.cli.PlasticCommandResult
 import java.time.Duration
+import kotlin.time.toJavaDuration
 
 /** Builds every result the gateway returns and records its diagnostic. */
 internal class GatewayResults(
@@ -22,10 +22,10 @@ internal class GatewayResults(
 
     fun <T> processSuccess(
         operation: PlasticOperation,
-        state: CommandState,
+        result: PlasticCommandResult<*>,
         value: T,
     ): PlasticResult.Success<T> {
-        val diagnostic = state.diagnostic(operation, PlasticDiagnosticOutcome.SUCCESS)
+        val diagnostic = result.diagnostic(operation, PlasticDiagnosticOutcome.SUCCESS)
         diagnosticSink.recordSafely(diagnostic)
         return PlasticResult.Success(value, diagnostic)
     }
@@ -42,31 +42,31 @@ internal class GatewayResults(
 
     fun processFailure(
         operation: PlasticOperation,
-        state: CommandState,
+        result: PlasticCommandResult<*>,
     ): PlasticResult.Failure? =
         when {
-            state.cancelled -> cancellationFailure(operation, state)
+            result.cancelled -> cancellationFailure(operation, result)
 
-            state.timedOut -> processFailure(operation, state, PlasticFailure.TimedOut)
+            result.timedOut -> processFailure(operation, result, PlasticFailure.TimedOut)
 
-            state.standardOutputTruncated || state.standardErrorTruncated ->
+            result.standardOutputTruncated || result.standardErrorTruncated ->
                 processFailure(
                     operation,
-                    state,
+                    result,
                     PlasticFailure.OutputLimitExceeded(
-                        standardOutput = state.standardOutputTruncated,
-                        standardError = state.standardErrorTruncated,
+                        standardOutput = result.standardOutputTruncated,
+                        standardError = result.standardErrorTruncated,
                     ),
                 )
 
-            state.exitCode != 0 -> processFailure(operation, state, PlasticFailure.CommandFailed(state.exitCode))
+            result.exitCode != 0 -> processFailure(operation, result, PlasticFailure.CommandFailed(result.exitCode))
 
             else -> null
         }
 
     fun processFailure(
         operation: PlasticOperation,
-        state: CommandState,
+        result: PlasticCommandResult<*>,
         reason: PlasticFailure,
     ): PlasticResult.Failure {
         val outcome = when (reason) {
@@ -81,26 +81,26 @@ internal class GatewayResults(
             else -> PlasticDiagnosticOutcome.FAILED
         }
 
-        return failure(operation, state, outcome, reason)
+        return failure(operation, result, outcome, reason)
     }
 
     fun cancellationFailure(
         operation: PlasticOperation,
-        state: CommandState,
+        result: PlasticCommandResult<*>,
     ): PlasticResult.Failure =
         processFailure(
             operation = operation,
-            state = state,
+            result = result,
             reason = if (isDisposed()) PlasticFailure.Disposed else PlasticFailure.Cancelled,
         )
 
     fun parseFailure(
         operation: PlasticOperation,
-        state: CommandState,
+        result: PlasticCommandResult<*>,
     ): PlasticResult.Failure =
         failure(
             operation = operation,
-            state = state,
+            result = result,
             outcome = PlasticDiagnosticOutcome.FAILED,
             reason = PlasticFailure.MalformedOutput,
         )
@@ -122,35 +122,35 @@ internal class GatewayResults(
 
     fun launchFailure(
         operation: PlasticOperation,
-        startedAt: Long,
+        elapsed: kotlin.time.Duration,
     ): PlasticResult.Failure =
         failure(
             operation = operation,
             origin = PlasticDiagnosticOrigin.PROCESS,
             outcome = PlasticDiagnosticOutcome.FAILED,
             reason = PlasticFailure.LaunchFailed,
-            duration = elapsedSince(startedAt),
+            duration = elapsed.coerceAtLeast(kotlin.time.Duration.ZERO).toJavaDuration(),
         )
 
     fun executionFailure(
         operation: PlasticOperation,
-        startedAt: Long,
+        elapsed: kotlin.time.Duration,
     ): PlasticResult.Failure =
         failure(
             operation = operation,
             origin = PlasticDiagnosticOrigin.PROCESS,
             outcome = PlasticDiagnosticOutcome.FAILED,
             reason = PlasticFailure.ExecutionFailed,
-            duration = elapsedSince(startedAt),
+            duration = elapsed.coerceAtLeast(kotlin.time.Duration.ZERO).toJavaDuration(),
         )
 
     private fun failure(
         operation: PlasticOperation,
-        state: CommandState,
+        result: PlasticCommandResult<*>,
         outcome: PlasticDiagnosticOutcome,
         reason: PlasticFailure,
     ): PlasticResult.Failure {
-        val diagnostic = state.diagnostic(operation, outcome)
+        val diagnostic = result.diagnostic(operation, outcome)
         diagnosticSink.recordSafely(diagnostic)
         return PlasticResult.Failure(reason, diagnostic)
     }
@@ -167,20 +167,7 @@ internal class GatewayResults(
         return PlasticResult.Failure(reason, diagnostic)
     }
 
-    private fun elapsedSince(startedAt: Long): Duration = Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
-}
-
-internal data class CommandState(
-    val exitCode: Int?,
-    val duration: Duration,
-    val timedOut: Boolean,
-    val cancelled: Boolean,
-    val standardOutputTruncated: Boolean,
-    val standardErrorTruncated: Boolean,
-    val standardOutputBytesRead: Long,
-    val standardErrorBytesRead: Long,
-) {
-    fun diagnostic(
+    private fun PlasticCommandResult<*>.diagnostic(
         operation: PlasticOperation,
         outcome: PlasticDiagnosticOutcome,
     ): PlasticDiagnostic =
@@ -194,27 +181,3 @@ internal data class CommandState(
             standardErrorBytesRead = standardErrorBytesRead,
         )
 }
-
-internal fun PlasticTextResult.state(): CommandState =
-    CommandState(
-        exitCode,
-        duration,
-        timedOut,
-        cancelled,
-        standardOutputTruncated,
-        standardErrorTruncated,
-        standardOutputBytesRead,
-        standardErrorBytesRead,
-    )
-
-internal fun PlasticBinaryResult.state(): CommandState =
-    CommandState(
-        exitCode,
-        duration,
-        timedOut,
-        cancelled,
-        standardOutputTruncated,
-        standardErrorTruncated,
-        standardOutputBytesRead,
-        standardErrorBytesRead,
-    )

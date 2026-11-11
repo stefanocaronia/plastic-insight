@@ -33,6 +33,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TestTimeSource
+import kotlin.time.TimeSource
 
 class DefaultPlasticGatewayTest {
     @Test
@@ -103,6 +106,40 @@ class DefaultPlasticGatewayTest {
 
         assertIs<PlasticFailure.LaunchFailed>(result.reason)
         assertEquals(PlasticDiagnosticOutcome.FAILED, result.diagnostic.outcome)
+    }
+
+    @Test
+    fun `a launch failure reports the elapsed time of the injected time source`() {
+        val timeSource = TestTimeSource()
+        val runner = PlasticProcessRunner {
+            timeSource += 250.milliseconds
+            throw IOException("launch failed")
+        }
+        val gateway = timedGateway(runner, timeSource)
+
+        val result = assertIs<PlasticResult.Failure>(
+            gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs")),
+        )
+
+        assertIs<PlasticFailure.LaunchFailed>(result.reason)
+        assertEquals(Duration.ofMillis(250), result.diagnostic.duration)
+    }
+
+    @Test
+    fun `an execution failure reports the elapsed time of the injected time source`() {
+        val timeSource = TestTimeSource()
+        val runner = PlasticProcessRunner {
+            timeSource += 400.milliseconds
+            throw IllegalStateException("execution failed")
+        }
+        val gateway = timedGateway(runner, timeSource)
+
+        val result = assertIs<PlasticResult.Failure>(
+            gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs")),
+        )
+
+        assertIs<PlasticFailure.ExecutionFailed>(result.reason)
+        assertEquals(Duration.ofMillis(400), result.diagnostic.duration)
     }
 
     @Test
@@ -490,6 +527,19 @@ class DefaultPlasticGatewayTest {
             workspaceLocator = PlasticWorkspaceLocator { marker ->
                 markerPresent && marker == sampleRoot.resolve(".plastic").resolve("plastic.workspace")
             },
+        )
+
+    private fun timedGateway(
+        runner: PlasticProcessRunner,
+        timeSource: TimeSource,
+    ): DefaultPlasticGateway =
+        DefaultPlasticGateway(
+            cli = PlasticCli(runner, executable = "cm.exe"),
+            historicalLookupDirectory = Path.of("C:\\outside-workspaces"),
+            workspaceLocator = PlasticWorkspaceLocator { marker ->
+                marker == sampleRoot.resolve(".plastic").resolve("plastic.workspace")
+            },
+            timeSource = timeSource,
         )
 
     private fun workspaceDiscoveryOutput(): String =

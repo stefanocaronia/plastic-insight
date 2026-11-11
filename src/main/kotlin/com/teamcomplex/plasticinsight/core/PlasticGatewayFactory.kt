@@ -7,20 +7,23 @@ import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspaceLocator
 import java.io.IOException
 import java.nio.file.Path
 import java.time.Duration
+import kotlin.time.TimeSource
+import kotlin.time.toJavaDuration
 
 class PlasticGatewayFactory(
     private val executableResolver: PlasticExecutableResolver = PlasticExecutableResolver(),
     private val runnerFactory: () -> PlasticProcessRunner = ::JdkPlasticProcessRunner,
     private val workspaceLocator: PlasticWorkspaceLocator = PlasticWorkspaceLocator(),
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     fun create(
         settings: PlasticRuntimeSettings = PlasticRuntimeSettings(),
         cacheLimits: PlasticGatewayCacheLimits = PlasticGatewayCacheLimits(),
         diagnosticSink: PlasticDiagnosticSink = PlasticDiagnosticSink.NONE,
     ): PlasticResult<PlasticGateway> {
-        val startedAt = System.nanoTime()
+        val started = timeSource.markNow()
         val resolution = executableResolver.resolve(settings)
-        val duration = elapsedSince(startedAt)
+        val duration = started.elapsedNow().coerceAtLeast(kotlin.time.Duration.ZERO).toJavaDuration()
 
         return when (resolution) {
             is PlasticExecutableResolution.Resolved -> {
@@ -51,6 +54,7 @@ class PlasticGatewayFactory(
                             workspaceLocator = workspaceLocator,
                             cacheLimits = cacheLimits,
                             diagnosticSink = diagnosticSink,
+                            timeSource = timeSource,
                         ),
                         diagnostic = diagnostic,
                     )
@@ -87,8 +91,6 @@ class PlasticGatewayFactory(
         sink.recordSafely(diagnostic)
         return PlasticResult.Failure(reason, diagnostic)
     }
-
-    private fun elapsedSince(startedAt: Long): Duration = Duration.ofNanos((System.nanoTime() - startedAt).coerceAtLeast(0L))
 
     private fun realDirectory(path: Path): Path? =
         try {

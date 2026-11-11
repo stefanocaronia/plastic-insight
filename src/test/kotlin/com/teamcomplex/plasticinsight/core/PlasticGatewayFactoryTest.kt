@@ -4,8 +4,12 @@ import com.teamcomplex.plasticinsight.core.process.PlasticProcessRunner
 import com.teamcomplex.plasticinsight.core.workspace.PlasticWorkspaceLocator
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TestTimeSource
 
 class PlasticGatewayFactoryTest {
     @Test
@@ -68,5 +72,32 @@ class PlasticGatewayFactoryTest {
 
         assertIs<PlasticFailure.InvalidRuntimeConfiguration>(result.reason)
         Files.deleteIfExists(requireNotNull(missingDirectory.parent))
+    }
+
+    @Test
+    fun `the resolution diagnostic reports the elapsed time of the injected time source`() {
+        val executable = Path.of("C:\\Tools\\Plastic\\cm.exe")
+        val timeSource = TestTimeSource()
+        var fileChecks = 0
+        val factory = PlasticGatewayFactory(
+            executableResolver = PlasticExecutableResolver(
+                environment = emptyMap(),
+                isRegularFile = { candidate ->
+                    fileChecks++
+                    timeSource += 300.milliseconds
+                    candidate == executable
+                },
+            ),
+            runnerFactory = { PlasticProcessRunner { error("not invoked") } },
+            workspaceLocator = PlasticWorkspaceLocator { false },
+            timeSource = timeSource,
+        )
+
+        val result = assertIs<PlasticResult.Success<PlasticGateway>>(
+            factory.create(PlasticRuntimeSettings(executableOverride = executable.toString())),
+        )
+
+        assertEquals(Duration.ofMillis(300L * fileChecks), result.diagnostic.duration)
+        result.value.close()
     }
 }

@@ -2,6 +2,7 @@ package com.teamcomplex.plasticinsight.core
 
 import com.teamcomplex.plasticinsight.core.cli.PlasticBinaryResult
 import com.teamcomplex.plasticinsight.core.cli.PlasticCli
+import com.teamcomplex.plasticinsight.core.cli.PlasticCommandResult
 import com.teamcomplex.plasticinsight.core.cli.PlasticTextResult
 import com.teamcomplex.plasticinsight.core.history.PlasticFileHistoryXmlParser
 import com.teamcomplex.plasticinsight.core.history.PlasticHistoricalRevisionLookup
@@ -22,6 +23,7 @@ import java.io.IOException
 import java.nio.file.Path
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.TimeSource
 
 /** Synchronous core gateway; Rider owns background scheduling. */
 internal class DefaultPlasticGateway(
@@ -34,6 +36,7 @@ internal class DefaultPlasticGateway(
     private val statusParser: PlasticStatusParser = PlasticStatusParser(),
     private val historyParser: PlasticFileHistoryXmlParser = PlasticFileHistoryXmlParser(),
     private val historicalRevisionParser: PlasticHistoricalRevisionXmlParser = PlasticHistoricalRevisionXmlParser(),
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : PlasticGateway {
     private val disposed = AtomicBoolean()
     private val results = GatewayResults(diagnosticSink) { disposed.get() }
@@ -71,9 +74,9 @@ internal class DefaultPlasticGateway(
         val result = runCommand(operation, onFailure = { return it }) {
             cli.workspaceFromPath(root, root, token)
         }
-        results.processFailure(operation, result.state())?.let { return it }
+        results.processFailure(operation, result)?.let { return it }
 
-        val workspace = parseOutput(operation, result.state(), onFailure = { return it }) {
+        val workspace = parseOutput(operation, result, onFailure = { return it }) {
             checkParsingCancellation(token)
             workspaceParser.parse(result.standardOutput).also { parsed ->
                 if (parsed.root.normalize() != root) {
@@ -83,13 +86,13 @@ internal class DefaultPlasticGateway(
         }
 
         if (token.isCancellationRequested()) {
-            return results.cancellationFailure(operation, result.state())
+            return results.cancellationFailure(operation, result)
         }
 
         caches.storeIfCurrent(generation) { caches.workspaces.put(root, workspace) }
         return results.processSuccess(
             operation = operation,
-            state = result.state(),
+            result = result,
             value = PlasticWorkspaceLookup.Found(workspace),
         )
     }
@@ -112,9 +115,9 @@ internal class DefaultPlasticGateway(
                 cli.constrainedStatus(normalizedRoot, normalizedScope, token, includePrivateFiles)
             }
         }
-        results.processFailure(operation, result.state())?.let { return it }
+        results.processFailure(operation, result)?.let { return it }
 
-        val status = parseOutput(operation, result.state(), onFailure = { return it }) {
+        val status = parseOutput(operation, result, onFailure = { return it }) {
             checkParsingCancellation(token)
             statusParser.parse(result.standardOutput) { checkParsingCancellation(token) }.also { parsed ->
                 val root = workspace.root.normalize()
@@ -130,10 +133,10 @@ internal class DefaultPlasticGateway(
         }
 
         if (token.isCancellationRequested()) {
-            return results.cancellationFailure(operation, result.state())
+            return results.cancellationFailure(operation, result)
         }
 
-        return results.processSuccess(operation, result.state(), status)
+        return results.processSuccess(operation, result, status)
     }
 
     override fun baseContent(
@@ -165,14 +168,14 @@ internal class DefaultPlasticGateway(
         val result = runCommand(operation, onFailure = { return it }) {
             cli.workspaceBaseline(workspace.root, normalizedBasePath, status.workspaceChangeset, token)
         }
-        results.processFailure(operation, result.state())?.let { return it }
+        results.processFailure(operation, result)?.let { return it }
 
         if (token.isCancellationRequested()) {
-            return results.cancellationFailure(operation, result.state())
+            return results.cancellationFailure(operation, result)
         }
 
         caches.storeContent(key, result.standardOutput, generation)
-        return results.processSuccess(operation, result.state(), result.standardOutput)
+        return results.processSuccess(operation, result, result.standardOutput)
     }
 
     override fun add(
@@ -235,7 +238,7 @@ internal class DefaultPlasticGateway(
             }
 
             if (token.isCancellationRequested()) {
-                return results.cancellationFailure(operation, result.state())
+                return results.cancellationFailure(operation, result)
             }
 
             val movedQuery = status?.movedHistoryQuery(workspace, normalizedPath)
@@ -246,9 +249,9 @@ internal class DefaultPlasticGateway(
             }
         }
 
-        results.processFailure(operation, result.state())?.let { return it }
+        results.processFailure(operation, result)?.let { return it }
 
-        val parsed = parseOutput(operation, result.state(), onFailure = { return it }) {
+        val parsed = parseOutput(operation, result, onFailure = { return it }) {
             historyParser.parse(result.standardOutput) { checkParsingCancellation(token) }.also { history ->
                 if (history.itemName != null && !query.matches(history.itemName, normalizedPath)) {
                     throw PlasticParseException("Plastic history returned an inconsistent item path.")
@@ -257,7 +260,7 @@ internal class DefaultPlasticGateway(
         }
 
         if (token.isCancellationRequested()) {
-            return results.cancellationFailure(operation, result.state())
+            return results.cancellationFailure(operation, result)
         }
 
         val newestFirst = parsed.revisions.asReversed()
@@ -266,7 +269,7 @@ internal class DefaultPlasticGateway(
             hasMore = newestFirst.size > request.limit,
         )
         caches.storeIfCurrent(generation) { caches.histories.put(key, CachedHistory(page, query)) }
-        return results.processSuccess(operation, result.state(), page)
+        return results.processSuccess(operation, result, page)
     }
 
     override fun revisionContent(
@@ -321,14 +324,14 @@ internal class DefaultPlasticGateway(
                 cancellation = token,
             )
         }
-        results.processFailure(operation, result.state())?.let { return it }
+        results.processFailure(operation, result)?.let { return it }
 
         if (token.isCancellationRequested()) {
-            return results.cancellationFailure(operation, result.state())
+            return results.cancellationFailure(operation, result)
         }
 
         caches.storeContent(contentKey, result.standardOutput, generation)
-        return results.processSuccess(operation, result.state(), result.standardOutput)
+        return results.processSuccess(operation, result, result.standardOutput)
     }
 
     override fun invalidateCaches() {
@@ -355,13 +358,13 @@ internal class DefaultPlasticGateway(
 
         // A failed or cancelled multi-item command may still have changed a subset.
         invalidateCaches()
-        results.processFailure(operation, result.state())?.let { return it }
+        results.processFailure(operation, result)?.let { return it }
 
         if (token.isCancellationRequested()) {
-            return results.cancellationFailure(operation, result.state())
+            return results.cancellationFailure(operation, result)
         }
 
-        return results.processSuccess(operation, result.state(), Unit)
+        return results.processSuccess(operation, result, Unit)
     }
 
     private fun resolveHistoricalPath(
@@ -380,9 +383,9 @@ internal class DefaultPlasticGateway(
                 cancellation = cancellation,
             )
         }
-        results.processFailure(operation, result.state())?.let { return it }
+        results.processFailure(operation, result)?.let { return it }
 
-        val lookup = parseOutput(operation, result.state(), onFailure = { return it }) {
+        val lookup = parseOutput(operation, result, onFailure = { return it }) {
             historicalRevisionParser.parse(result.standardOutput) { checkParsingCancellation(cancellation) }
         }
 
@@ -390,14 +393,14 @@ internal class DefaultPlasticGateway(
             PlasticHistoricalRevisionLookup.NotFound ->
                 return results.processFailure(
                     operation = operation,
-                    state = result.state(),
+                    result = result,
                     reason = PlasticFailure.RevisionUnavailable,
                 )
 
             is PlasticHistoricalRevisionLookup.Ambiguous ->
                 return results.processFailure(
                     operation = operation,
-                    state = result.state(),
+                    result = result,
                     reason = PlasticFailure.AmbiguousRevision,
                 )
 
@@ -409,11 +412,11 @@ internal class DefaultPlasticGateway(
             found.repositoryName != key.repository ||
             !found.path.startsWith('/')
         ) {
-            return results.parseFailure(operation, result.state())
+            return results.parseFailure(operation, result)
         }
 
         caches.storeIfCurrent(generation) { caches.historicalPaths.put(key, found.path) }
-        return results.processSuccess(operation, result.state(), found.path)
+        return results.processSuccess(operation, result, found.path)
     }
 
     private inline fun executeFileHistory(
@@ -477,35 +480,35 @@ internal class DefaultPlasticGateway(
         onFailure: (PlasticResult.Failure) -> Nothing,
         action: () -> T,
     ): T {
-        val startedAt = System.nanoTime()
+        val started = timeSource.markNow()
 
         return try {
             action()
         } catch (_: IOException) {
-            onFailure(results.launchFailure(operation, startedAt))
+            onFailure(results.launchFailure(operation, started.elapsedNow()))
         } catch (_: SecurityException) {
-            onFailure(results.launchFailure(operation, startedAt))
+            onFailure(results.launchFailure(operation, started.elapsedNow()))
         } catch (_: IllegalArgumentException) {
-            onFailure(results.executionFailure(operation, startedAt))
+            onFailure(results.executionFailure(operation, started.elapsedNow()))
         } catch (_: IllegalStateException) {
-            onFailure(results.executionFailure(operation, startedAt))
+            onFailure(results.executionFailure(operation, started.elapsedNow()))
         } catch (_: UnsupportedOperationException) {
-            onFailure(results.executionFailure(operation, startedAt))
+            onFailure(results.executionFailure(operation, started.elapsedNow()))
         }
     }
 
     private inline fun <T> parseOutput(
         operation: PlasticOperation,
-        state: CommandState,
+        result: PlasticCommandResult<*>,
         onFailure: (PlasticResult.Failure) -> Nothing,
         parse: () -> T,
     ): T =
         try {
             parse()
         } catch (_: ParsingCancelledException) {
-            onFailure(results.cancellationFailure(operation, state))
+            onFailure(results.cancellationFailure(operation, result))
         } catch (_: PlasticParseException) {
-            onFailure(results.parseFailure(operation, state))
+            onFailure(results.parseFailure(operation, result))
         }
 
     /** Reuses a cached wider prefix, or a known complete history, without retaining overlapping pages. */

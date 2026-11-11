@@ -3,10 +3,11 @@ package com.teamcomplex.plasticinsight.core.cli
 import com.teamcomplex.plasticinsight.core.process.PlasticInvocation
 import java.time.Duration
 
-data class PlasticTextResult(
+/** What one `cm` command returned; the standard output is text or raw bytes. */
+data class PlasticCommandResult<T>(
     val invocation: PlasticInvocation,
     val exitCode: Int?,
-    val standardOutput: String,
+    val standardOutput: T,
     val standardError: String,
     val duration: Duration,
     val timedOut: Boolean,
@@ -23,3 +24,7 @@ data class PlasticTextResult(
         require(!(timedOut && cancelled)) { "A Plastic command cannot be both timed out and cancelled." }
     }
 }
+
+typealias PlasticTextResult = PlasticCommandResult<String>
+
+typealias PlasticBinaryResult = PlasticCommandResult<ByteArray>

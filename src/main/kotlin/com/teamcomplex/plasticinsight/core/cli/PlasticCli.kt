@@ -3,6 +3,7 @@ package com.teamcomplex.plasticinsight.core.cli
 import com.teamcomplex.plasticinsight.core.process.BoundedOutputCapture
 import com.teamcomplex.plasticinsight.core.process.PlasticCancellation
 import com.teamcomplex.plasticinsight.core.process.PlasticInvocation
+import com.teamcomplex.plasticinsight.core.process.PlasticProcessResult
 import com.teamcomplex.plasticinsight.core.process.PlasticProcessRunner
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
@@ -144,20 +145,7 @@ class PlasticCli(
         cancellation: PlasticCancellation,
     ): PlasticTextResult {
         val result = runner.run(invocation, cancellation)
-
-        return PlasticTextResult(
-            invocation = invocation,
-            exitCode = result.exitCode,
-            standardOutput = result.standardOutput.toString(outputCharset),
-            standardError = result.standardError.toString(outputCharset),
-            duration = result.duration,
-            timedOut = result.timedOut,
-            standardOutputTruncated = result.standardOutputTruncated,
-            standardErrorTruncated = result.standardErrorTruncated,
-            standardOutputBytesRead = result.standardOutputBytesRead,
-            standardErrorBytesRead = result.standardErrorBytesRead,
-            cancelled = result.cancelled,
-        )
+        return result.toCommandResult(invocation, result.standardOutput.toString(outputCharset))
     }
 
     /** Returns the bytes `cm` wrote to a temporary file in place of its stdout, which is not byte-exact. */
@@ -175,18 +163,11 @@ class PlasticCli(
                 NO_CONTENT
             }
 
-            PlasticBinaryResult(
+            result.toCommandResult(
                 invocation = invocation,
-                exitCode = result.exitCode,
                 standardOutput = content.bytes,
-                standardError = result.standardError.toString(outputCharset),
-                duration = result.duration,
-                timedOut = result.timedOut,
                 standardOutputTruncated = result.standardOutputTruncated || content.truncated,
-                standardErrorTruncated = result.standardErrorTruncated,
                 standardOutputBytesRead = content.totalBytesRead,
-                standardErrorBytesRead = result.standardErrorBytesRead,
-                cancelled = result.cancelled,
             )
         }
 
@@ -195,21 +176,28 @@ class PlasticCli(
         cancellation: PlasticCancellation,
     ): PlasticBinaryResult {
         val result = runner.run(invocation, cancellation)
-
-        return PlasticBinaryResult(
-            invocation = invocation,
-            exitCode = result.exitCode,
-            standardOutput = result.standardOutput,
-            standardError = result.standardError.toString(outputCharset),
-            duration = result.duration,
-            timedOut = result.timedOut,
-            standardOutputTruncated = result.standardOutputTruncated,
-            standardErrorTruncated = result.standardErrorTruncated,
-            standardOutputBytesRead = result.standardOutputBytesRead,
-            standardErrorBytesRead = result.standardErrorBytesRead,
-            cancelled = result.cancelled,
-        )
+        return result.toCommandResult(invocation, result.standardOutput)
     }
+
+    private fun <T> PlasticProcessResult.toCommandResult(
+        invocation: PlasticInvocation,
+        standardOutput: T,
+        standardOutputTruncated: Boolean = this.standardOutputTruncated,
+        standardOutputBytesRead: Long = this.standardOutputBytesRead,
+    ): PlasticCommandResult<T> =
+        PlasticCommandResult(
+            invocation = invocation,
+            exitCode = exitCode,
+            standardOutput = standardOutput,
+            standardError = standardError.toString(outputCharset),
+            duration = duration,
+            timedOut = timedOut,
+            standardOutputTruncated = standardOutputTruncated,
+            standardErrorTruncated = standardErrorTruncated,
+            standardOutputBytesRead = standardOutputBytesRead,
+            standardErrorBytesRead = standardErrorBytesRead,
+            cancelled = cancelled,
+        )
 
     private companion object {
         val NO_CONTENT = BoundedOutputCapture(byteArrayOf(), 0L, truncated = false)
