@@ -19,6 +19,14 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <p><b>0.1.5</b></p>
+        <ul>
+            <li>Fixed Local Changes showing "malformed output" for a moved and edited file on systems that use a decimal comma</li>
+            <li>A moved file is listed once, and Compare with Same Repository Version works on it</li>
+            <li>Revisions older than a rename can be compared in the file history</li>
+            <li>The file-history banner follows the revisions actually loaded</li>
+            <li>Failed Plastic commands are written to Rider's log, without paths or file content</li>
+        </ul>
         <p><b>0.1.4</b></p>
         <ul>
             <li>Publisher details updated; no functional change</li>
