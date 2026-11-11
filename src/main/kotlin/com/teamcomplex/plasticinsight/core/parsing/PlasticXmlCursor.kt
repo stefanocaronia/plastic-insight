@@ -25,6 +25,7 @@ internal class PlasticXmlCursor private constructor(
                     if (elementName != expectedName) {
                         throw PlasticParseException("Plastic XML has an unexpected root element.")
                     }
+
                     return
                 }
 
@@ -41,6 +42,7 @@ internal class PlasticXmlCursor private constructor(
                 else -> throw PlasticParseException("Plastic XML has no root element.")
             }
         }
+
         throw PlasticParseException("Plastic XML has no root element.")
     }
 
@@ -56,6 +58,7 @@ internal class PlasticXmlCursor private constructor(
                     if (elementName != parentName) {
                         throw PlasticParseException("Plastic XML closed an unexpected element.")
                     }
+
                     return
                 }
 
@@ -71,11 +74,13 @@ internal class PlasticXmlCursor private constructor(
                 else -> throw PlasticParseException("Plastic XML contains invalid element content.")
             }
         }
+
         throw PlasticParseException("Plastic XML ended before closing an element.")
     }
 
     fun readText(elementName: String): String {
         val result = StringBuilder()
+
         while (reader.hasNext()) {
             when (next()) {
                 XMLStreamConstants.CHARACTERS,
@@ -92,6 +97,7 @@ internal class PlasticXmlCursor private constructor(
                     if (this.elementName != elementName) {
                         throw PlasticParseException("Plastic XML closed an unexpected text element.")
                     }
+
                     return result.toString()
                 }
 
@@ -101,11 +107,13 @@ internal class PlasticXmlCursor private constructor(
                 else -> throw PlasticParseException("Plastic XML contains invalid text content.")
             }
         }
+
         throw PlasticParseException("Plastic XML ended inside a text field.")
     }
 
     fun skipElement() {
         var depth = 1
+
         while (reader.hasNext()) {
             when (next()) {
                 XMLStreamConstants.START_ELEMENT -> {
@@ -116,12 +124,14 @@ internal class PlasticXmlCursor private constructor(
                 XMLStreamConstants.END_ELEMENT -> {
                     elementName
                     depth--
+
                     if (depth == 0) {
                         return
                     }
                 }
             }
         }
+
         throw PlasticParseException("Plastic XML ended inside an unknown element.")
     }
 
@@ -154,14 +164,17 @@ internal class PlasticXmlCursor private constructor(
 
     private fun next(): Int {
         cancellationCheck()
+
         val event = try {
             reader.next()
         } catch (exception: XMLStreamException) {
             throw PlasticParseException("Plastic returned malformed XML.", exception)
         }
+
         if (event == XMLStreamConstants.DTD) {
             throw PlasticParseException("Plastic XML must not contain a document type declaration.")
         }
+
         return event
     }
 
@@ -202,6 +215,7 @@ internal class PlasticXmlCursor private constructor(
             } catch (exception: XMLStreamException) {
                 throw PlasticParseException("Plastic returned malformed XML.", exception)
             }
+
             return PlasticXmlCursor(reader, cancellationCheck)
         }
     }

@@ -27,6 +27,7 @@ class PlasticHistoricalRevisionXmlParser(
                         if (revisions.size >= maxEntries) {
                             throw PlasticParseException("Plastic revision lookup exceeds the configured entry limit.")
                         }
+
                         revisions.add(parseRevision(cursor))
                     }
 
@@ -53,9 +54,11 @@ class PlasticHistoricalRevisionXmlParser(
         }
 
         val parentValue = fields.requiredLong(PARENT, minimum = -1)
+
         if (parentValue < -1) {
             throw PlasticParseException("Plastic revision lookup contains an invalid parent revision ID.")
         }
+
         val hash = fields.required(HASH).trim().takeUnless(String::isEmpty)
         val hashAlgorithm = fields.required(HASH_ALGORITHM).trim().takeUnless(String::isEmpty)
 
@@ -99,9 +102,11 @@ class PlasticHistoricalRevisionXmlParser(
 
     private fun Map<String, String>.requiredNonBlank(name: String): String {
         val value = required(name)
+
         if (value.isBlank()) {
             throw PlasticParseException("Plastic revision lookup contains a blank $name field.")
         }
+
         return value
     }
 
@@ -111,9 +116,11 @@ class PlasticHistoricalRevisionXmlParser(
     ): Long {
         val result = required(name).trim().toLongOrNull()
             ?: throw PlasticParseException("Plastic revision lookup contains an invalid $name field.")
+
         if (result < minimum) {
             throw PlasticParseException("Plastic revision lookup contains an invalid $name field.")
         }
+
         return result
     }
 

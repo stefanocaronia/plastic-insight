@@ -60,7 +60,11 @@ internal class PlasticChangeProvider(
 
         fun rootFallback(snapshot: PlasticStatusSnapshot): PlasticStatusSnapshot? {
             val root = snapshot.workspace.root.normalize()
-            if (rootFallbacks.containsKey(root)) return rootFallbacks[root]
+
+            if (rootFallbacks.containsKey(root)) {
+                return rootFallbacks[root]
+            }
+
             return vcs.loadStatus(root, cancellation).also { rootFallbacks[root] = it }
         }
 
@@ -71,13 +75,24 @@ internal class PlasticChangeProvider(
                 cancellation = cancellation,
                 includePrivateFiles = true,
             ) ?: continue
+
             if (scope.recursive && scope.path.normalize() == snapshot.workspace.root.normalize()) {
                 rootFallbacks[snapshot.workspace.root.normalize()] = snapshot
             }
+
             for (change in snapshot.status.changes) {
-                if (!scope.contains(change) || change.isDirectory) continue
-                if (change.isRiderIgnored()) continue
-                if (reportedPaths.contains(change.path.normalize())) continue
+                if (!scope.contains(change) || change.isDirectory) {
+                    continue
+                }
+
+                if (change.isRiderIgnored()) {
+                    continue
+                }
+
+                if (reportedPaths.contains(change.path.normalize())) {
+                    continue
+                }
+
                 progress.checkCanceled()
                 // Exact move destinations can look private; controlled status is authoritative.
                 val fallback = if (!scope.recursive && change.isRiderUnversioned()) rootFallback(snapshot) else null
@@ -85,11 +100,16 @@ internal class PlasticChangeProvider(
                     preferControlledChange(change.path, change, status.status.changes)
                 } ?: change
                 val preferredSnapshot = if (preferred === change) snapshot else requireNotNull(fallback)
-                if (!reportedPaths.add(preferred.path.normalize())) continue
+
+                if (!reportedPaths.add(preferred.path.normalize())) {
+                    continue
+                }
+
                 if (preferred.isRiderUnversioned()) {
                     builder.processUnversionedFile(VcsUtil.getFilePath(preferred.path, false))
                     continue
                 }
+
                 toRiderChange(vcs, preferredSnapshot, preferred)?.let {
                     builder.processChange(it, PlasticVcs.KEY)
                 }
@@ -176,7 +196,10 @@ internal fun planStatusScopes(
     val dominantRecursive = recursiveCandidates
         .sortedWith(compareBy<Path>({ it.nameCount }, ::pathSortKey))
         .fold(mutableListOf<Path>()) { selected, candidate ->
-            if (selected.none(candidate::startsWith)) selected.add(candidate)
+            if (selected.none(candidate::startsWith)) {
+                selected.add(candidate)
+            }
+
             selected
         }
 
@@ -215,6 +238,7 @@ private fun toRiderChange(
     val kind = change.riderKind() ?: return null
     val revisionNumber = VcsRevisionNumber.Long(snapshot.status.workspaceChangeset)
     val currentFile = VcsUtil.getFilePath(change.path, false)
+
     val before = when (kind) {
         PlasticRiderChangeKind.ADDED -> null
 
@@ -233,9 +257,11 @@ private fun toRiderChange(
         PlasticRiderChangeKind.DELETED,
         -> PlasticBaseContentRevision(vcs, snapshot, currentFile, change.path, revisionNumber)
     }
+
     val after = when (kind) {
         PlasticRiderChangeKind.DELETED -> null
         else -> CurrentContentRevision.create(currentFile)
     }
+
     return Change(before, after)
 }

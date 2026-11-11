@@ -61,9 +61,12 @@ class PlasticExecutableResolver(
         rawValue: String?,
         source: PlasticExecutableSource,
     ): PlasticExecutableResolution? {
-        if (rawValue.isNullOrBlank()) return null
+        if (rawValue.isNullOrBlank()) {
+            return null
+        }
 
         val candidate = parseAbsolutePath(rawValue)
+
         return if (candidate != null && regularFileExists(candidate)) {
             PlasticExecutableResolution.Resolved(candidate, source)
         } else {
@@ -90,19 +93,28 @@ class PlasticExecutableResolver(
             ?: return null
 
         for (rawDirectory in searchPath.split(pathSeparator)) {
-            if (rawDirectory.isBlank()) continue
+            if (rawDirectory.isBlank()) {
+                continue
+            }
+
             val directory = parseAbsolutePath(rawDirectory) ?: continue
             val candidate = directory.resolve(EXECUTABLE_FILE_NAME).normalize()
+
             if (regularFileExists(candidate)) {
                 return PlasticExecutableResolution.Resolved(candidate, PlasticExecutableSource.PATH)
             }
         }
+
         return null
     }
 
     private fun parseAbsolutePath(rawValue: String): Path? {
         val value = rawValue.trim().removeMatchingQuotes()
-        if (value.isBlank()) return null
+
+        if (value.isBlank()) {
+            return null
+        }
+
         return try {
             Path.of(value).takeIf(Path::isAbsolute)?.normalize()
         } catch (_: InvalidPathException) {

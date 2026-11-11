@@ -106,6 +106,7 @@ class PlasticHistoricalRevisionXmlParserTest {
         assertFailsWith<TestCancellation> {
             parser.parse(fixture("one.xml")) {
                 checks++
+
                 if (checks == 5) {
                     throw TestCancellation()
                 }

@@ -13,13 +13,16 @@ internal fun parseAbsolutePlasticPath(
         } else {
             value
         }
+
     val path = try {
         Path.of(normalizedValue).normalize()
     } catch (exception: InvalidPathException) {
         throw PlasticParseException("Plastic output contains an invalid $fieldDescription.", exception)
     }
+
     if (!path.isAbsolute) {
         throw PlasticParseException("Plastic output contains a relative $fieldDescription.")
     }
+
     return path
 }

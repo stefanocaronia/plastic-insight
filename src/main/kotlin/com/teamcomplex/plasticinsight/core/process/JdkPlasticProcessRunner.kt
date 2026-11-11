@@ -18,11 +18,13 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
         cancellation: PlasticCancellation,
     ): PlasticProcessResult {
         val startedAt = System.nanoTime()
+
         if (cancellation.isCancellationRequested() || Thread.currentThread().isInterrupted) {
             return PlasticProcessResult.cancelled(elapsedSince(startedAt))
         }
 
         val streamExecutor = Executors.newVirtualThreadPerTaskExecutor()
+
         val process = try {
             ProcessBuilder(invocation.commandLine())
                 .directory(invocation.workingDirectory.toFile())
@@ -32,6 +34,7 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
             streamExecutor.shutdownNow()
             throw throwable
         }
+
         val interruptState = InterruptState()
         var standardOutputFuture: Future<BoundedOutputCapture>? = null
         var standardErrorFuture: Future<BoundedOutputCapture>? = null
@@ -53,6 +56,7 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
             )
 
             outcome = waitForProcess(process, invocation.timeout, cancellation, interruptState)
+
             if (outcome != ProcessOutcome.COMPLETED) {
                 terminateProcessTree(process, interruptState)
             }
@@ -64,12 +68,14 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
             if (process.isAlive) {
                 terminateProcessTree(process, interruptState)
             }
+
             closeQuietly(process.outputStream)
             closeQuietly(process.inputStream)
             closeQuietly(process.errorStream)
             standardOutputFuture?.cancel(true)
             standardErrorFuture?.cancel(true)
             shutdownReaders(streamExecutor, interruptState)
+
             if (interruptState.observed) {
                 Thread.currentThread().interrupt()
             }
@@ -100,11 +106,17 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
         interruptState: InterruptState,
     ): ProcessOutcome {
         val deadline = Deadline(timeout)
+
         while (true) {
-            if (cancellation.isCancellationRequested()) return ProcessOutcome.CANCELLED
+            if (cancellation.isCancellationRequested()) {
+                return ProcessOutcome.CANCELLED
+            }
 
             val remainingNanos = deadline.remainingNanos()
-            if (remainingNanos <= 0L) return ProcessOutcome.TIMED_OUT
+
+            if (remainingNanos <= 0L) {
+                return ProcessOutcome.TIMED_OUT
+            }
 
             try {
                 if (process.waitFor(minOf(remainingNanos, POLL_INTERVAL_NANOS), TimeUnit.NANOSECONDS)) {
@@ -133,9 +145,11 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
     ): BoundedOutputCapture {
         while (true) {
             val remainingNanos = deadline.remainingNanos()
+
             if (remainingNanos <= 0L) {
                 throw IllegalStateException("Plastic process stream readers did not finish within the bounded cleanup period.")
             }
+
             try {
                 return future.get(minOf(remainingNanos, POLL_INTERVAL_NANOS), TimeUnit.NANOSECONDS)
             } catch (_: TimeoutException) {
@@ -157,7 +171,9 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
         descendants.values.forEach { handle -> runCatching { handle.destroy() } }
         runCatching { process.destroy() }
 
-        if (waitForTreeExit(process, descendants.values, GRACEFUL_TERMINATION_TIMEOUT, interruptState)) return
+        if (waitForTreeExit(process, descendants.values, GRACEFUL_TERMINATION_TIMEOUT, interruptState)) {
+            return
+        }
 
         collectDescendants(process, descendants)
         descendants.values.forEach { handle -> runCatching { handle.destroyForcibly() } }
@@ -183,15 +199,21 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
         interruptState: InterruptState,
     ): Boolean {
         val deadline = Deadline(timeout)
+
         while (process.isAlive || descendants.any(ProcessHandle::isAlive)) {
             val remainingNanos = deadline.remainingNanos()
-            if (remainingNanos <= 0L) return false
+
+            if (remainingNanos <= 0L) {
+                return false
+            }
+
             try {
                 TimeUnit.NANOSECONDS.sleep(minOf(remainingNanos, TERMINATION_POLL_NANOS))
             } catch (_: InterruptedException) {
                 interruptState.observed = true
             }
         }
+
         return true
     }
 
@@ -201,11 +223,18 @@ class JdkPlasticProcessRunner : PlasticProcessRunner {
     ) {
         executor.shutdownNow()
         val deadline = Deadline(STREAM_EXECUTOR_SHUTDOWN_TIMEOUT)
+
         while (!executor.isTerminated) {
             val remainingNanos = deadline.remainingNanos()
-            if (remainingNanos <= 0L) return
+
+            if (remainingNanos <= 0L) {
+                return
+            }
+
             try {
-                if (executor.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) return
+                if (executor.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) {
+                    return
+                }
             } catch (_: InterruptedException) {
                 interruptState.observed = true
             }

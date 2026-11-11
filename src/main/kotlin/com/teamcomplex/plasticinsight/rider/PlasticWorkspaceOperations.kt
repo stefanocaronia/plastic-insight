@@ -47,7 +47,10 @@ internal class PlasticRollbackEnvironment(
         exceptions.addAll(result.errors)
         changes.forEach { change ->
             val path = rollbackPath(change)?.toLocalPath()
-            if (path != null && path in result.succeededPaths) listener.accept(change)
+
+            if (path != null && path in result.succeededPaths) {
+                listener.accept(change)
+            }
         }
     }
 
@@ -96,6 +99,7 @@ private fun runWorkspaceOperation(
     files.distinctBy(FilePath::getPath).forEach { file ->
         val path = file.toLocalPath()
         val root = manager.getVcsRootFor(file)?.path?.toLocalPath()
+
         if (path == null || root == null) {
             errors.add(VcsException("Plastic workspace operation requires a local mapped path."))
         } else {
@@ -105,8 +109,10 @@ private fun runWorkspaceOperation(
 
     val succeeded = HashSet<Path>()
     val cancellation = vcs.currentCancellation()
+
     for ((root, paths) in grouped) {
         checkCanceled()
+
         try {
             operation(root, paths, cancellation)
             succeeded.addAll(paths)
@@ -116,6 +122,7 @@ private fun runWorkspaceOperation(
             errors.add(failure)
         }
     }
+
     return WorkspaceOperationResult(succeeded, errors)
 }
 

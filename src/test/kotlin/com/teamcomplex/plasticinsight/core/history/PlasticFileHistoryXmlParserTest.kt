@@ -114,6 +114,7 @@ class PlasticFileHistoryXmlParserTest {
         assertFailsWith<TestCancellation> {
             parser.parse(fixture("representative.xml")) {
                 checks++
+
                 if (checks == 5) {
                     throw TestCancellation()
                 }

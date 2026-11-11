@@ -23,15 +23,22 @@ internal fun captureBoundedOutput(
     ByteArrayOutputStream(minOf(limitBytes, DEFAULT_BUFFER_SIZE)).use { destination ->
         while (true) {
             val count = input.read(buffer)
-            if (count < 0) break
+
+            if (count < 0) {
+                break
+            }
 
             totalBytesRead += count
             val writable = minOf(count, limitBytes - retainedBytes)
+
             if (writable > 0) {
                 destination.write(buffer, 0, writable)
                 retainedBytes += writable
             }
-            if (writable < count) truncated = true
+
+            if (writable < count) {
+                truncated = true
+            }
         }
 
         return BoundedOutputCapture(

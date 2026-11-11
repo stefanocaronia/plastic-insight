@@ -89,8 +89,14 @@ internal class PlasticHistoryProvider(
     private fun consumeRequestedLimit(path: Path): Int {
         while (true) {
             val request = requestedExpansion.get() ?: return INITIAL_HISTORY_LIMIT
-            if (request.path != path) return INITIAL_HISTORY_LIMIT
-            if (requestedExpansion.compareAndSet(request, null)) return request.limit
+
+            if (request.path != path) {
+                return INITIAL_HISTORY_LIMIT
+            }
+
+            if (requestedExpansion.compareAndSet(request, null)) {
+                return request.limit
+            }
         }
     }
 
@@ -103,7 +109,11 @@ internal class PlasticHistoryProvider(
         ) {
         override fun actionPerformed(event: AnActionEvent) {
             val session = event.getData(VcsDataKeys.HISTORY_SESSION) as? PlasticHistorySession ?: return
-            if (!session.hasMore) return
+
+            if (!session.hasMore) {
+                return
+            }
+
             requestedExpansion.set(
                 HistoryExpansionRequest(session.filePath, nextHistoryLimit(session.requestedLimit)),
             )
@@ -112,10 +122,12 @@ internal class PlasticHistoryProvider(
 
         override fun update(event: AnActionEvent) {
             val session = event.getData(VcsDataKeys.HISTORY_SESSION) as? PlasticHistorySession
+
             if (session == null || !session.hasMore || session.requestedLimit >= PlasticHistoryRequest.MAX_LIMIT) {
                 event.presentation.isEnabledAndVisible = false
                 return
             }
+
             val nextLimit = nextHistoryLimit(session.requestedLimit)
             event.presentation.isEnabledAndVisible = true
             event.presentation.text = "Load Up to $nextLimit Revisions"
@@ -176,7 +188,10 @@ internal class PlasticVcsFileRevision(
     override fun getChangedRepositoryPath(): RepositoryLocation? = null
 
     override fun loadContent(): ByteArray {
-        if (!isContentAvailable) throw VcsException("This Plastic revision has no available file content.")
+        if (!isContentAvailable) {
+            throw VcsException("This Plastic revision has no available file content.")
+        }
+
         return contentLoader()
     }
 

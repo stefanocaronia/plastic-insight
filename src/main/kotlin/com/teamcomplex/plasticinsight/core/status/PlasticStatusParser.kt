@@ -11,9 +11,11 @@ class PlasticStatusParser {
     ): PlasticWorkspaceStatus {
         cancellationCheck()
         var outputEnd = output.length
+
         while (outputEnd > 0 && (output[outputEnd - 1] == '\r' || output[outputEnd - 1] == '\n')) {
             outputEnd--
         }
+
         if (outputEnd == 0) {
             throw PlasticParseException("Plastic status returned no records.")
         }
@@ -21,25 +23,36 @@ class PlasticStatusParser {
         var cursor = 0
         var header: Header? = null
         val changes = ArrayList<PlasticPendingChange>()
+
         while (cursor < outputEnd) {
             cancellationCheck()
+
             while (cursor < outputEnd && (output[cursor] == '\r' || output[cursor] == '\n')) {
                 cursor++
             }
-            if (cursor == outputEnd) break
+
+            if (cursor == outputEnd) {
+                break
+            }
+
             if (output[cursor] != RECORD_SEPARATOR) {
                 throw PlasticParseException("Plastic status contains an unframed record.")
             }
+
             val recordEnd = output.indexOf(GROUP_SEPARATOR, cursor + 1)
+
             if (recordEnd < 0 || recordEnd >= outputEnd) {
                 throw PlasticParseException("Plastic status contains an unterminated record.")
             }
+
             val record = output.substring(cursor + 1, recordEnd)
+
             if (header == null) {
                 header = parseHeader(record)
             } else {
                 changes.add(parseChange(record))
             }
+
             cursor = recordEnd + 1
         }
 
@@ -54,15 +67,19 @@ class PlasticStatusParser {
 
     private fun parseHeader(record: String): Header {
         val fields = record.split(FIELD_SEPARATOR)
+
         if (fields.size != HEADER_FIELD_COUNT || fields[0] != HEADER_MARKER) {
             throw PlasticParseException("Plastic status contains an invalid header.")
         }
+
         val workspaceChangeset = fields[1].toLongOrNull()
             ?.takeIf { it >= 0 }
             ?: throw PlasticParseException("Plastic status contains an invalid workspace changeset.")
+
         if (fields[2].isBlank() || fields[3].isBlank()) {
             throw PlasticParseException("Plastic status contains incomplete repository information.")
         }
+
         return Header(workspaceChangeset, fields[2], fields[3])
     }
 
@@ -71,6 +88,7 @@ class PlasticStatusParser {
         val codes = parseCodes(fields[0])
         val isMove = PlasticStatusCode.MOVED in codes || PlasticStatusCode.LOCALLY_MOVED in codes
         val expectedFieldCount = if (isMove) MOVE_FIELD_COUNT else CHANGE_FIELD_COUNT
+
         if (fields.size != expectedFieldCount) {
             throw PlasticParseException(
                 "Plastic status change returned ${fields.size} fields; expected $expectedFieldCount.",
@@ -99,13 +117,16 @@ class PlasticStatusParser {
 
     private fun parseCodes(value: String): Set<PlasticStatusCode> {
         val codes = LinkedHashSet<PlasticStatusCode>()
+
         for (token in value.split('+')) {
             val code = PlasticStatusCode.fromToken(token)
                 ?: throw PlasticParseException("Plastic status contains an unknown change code.")
+
             if (!codes.add(code)) {
                 throw PlasticParseException("Plastic status contains a duplicate change code.")
             }
         }
+
         return codes
     }
 
@@ -119,18 +140,22 @@ class PlasticStatusParser {
     private fun parseRevisionId(value: String): Long? {
         val revisionId = value.toLongOrNull()
             ?: throw PlasticParseException("Plastic status contains an invalid revision ID.")
+
         if (revisionId < -1) {
             throw PlasticParseException("Plastic status contains an invalid revision ID.")
         }
+
         return revisionId.takeIf { it >= 0 }
     }
 
     private fun parseSimilarity(value: String): Double {
         val similarity = value.removeSuffix("%").toDoubleOrNull()
             ?: throw PlasticParseException("Plastic status contains invalid move similarity.")
+
         if (similarity !in 0.0..100.0) {
             throw PlasticParseException("Plastic status contains invalid move similarity.")
         }
+
         return similarity
     }
 

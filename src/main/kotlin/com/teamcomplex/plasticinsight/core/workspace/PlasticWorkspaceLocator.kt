@@ -11,10 +11,15 @@ class PlasticWorkspaceLocator(
         require(startDirectory.isAbsolute) { "The workspace lookup directory must be absolute." }
 
         var candidate: Path? = startDirectory.normalize()
+
         while (candidate != null) {
-            if (markerExists(candidate.resolve(WORKSPACE_MARKER))) return candidate
+            if (markerExists(candidate.resolve(WORKSPACE_MARKER))) {
+                return candidate
+            }
+
             candidate = candidate.parent
         }
+
         return null
     }
 

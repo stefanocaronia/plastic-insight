@@ -168,6 +168,7 @@ class PlasticCli(
         withTemporaryContentFile { outputFile ->
             val invocation = buildInvocation(outputFile)
             val result = runner.run(invocation, cancellation)
+
             val content = if (result.exitCode == 0) {
                 readBoundedContentFile(outputFile, invocation.standardOutputLimitBytes)
             } else {

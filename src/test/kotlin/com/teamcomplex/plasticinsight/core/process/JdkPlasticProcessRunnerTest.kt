@@ -166,9 +166,11 @@ class JdkPlasticProcessRunnerTest {
 
     private fun waitForFile(path: Path) {
         val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+
         while (!Files.exists(path) && System.nanoTime() < deadline) {
             Thread.sleep(10L)
         }
+
         check(Files.exists(path)) { "The process probe did not create '$path'." }
     }
 
@@ -176,9 +178,11 @@ class JdkPlasticProcessRunnerTest {
 
     private fun assertProcessStopped(processId: Long) {
         val deadline = System.nanoTime() + Duration.ofSeconds(2).toNanos()
+
         while (ProcessHandle.of(processId).map(ProcessHandle::isAlive).orElse(false) && System.nanoTime() < deadline) {
             Thread.sleep(10L)
         }
+
         assertFalse(ProcessHandle.of(processId).map(ProcessHandle::isAlive).orElse(false))
     }
 

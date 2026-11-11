@@ -78,11 +78,15 @@ class PlasticVcs(
         val normalizedScope = scope.toAbsolutePath().normalize()
         val gateway = gateway()
         val lookup = unwrap(gateway.discoverWorkspace(normalizedScope, cancellation), "workspace discovery")
+
         val workspace = when (lookup) {
             is PlasticWorkspaceLookup.Found -> lookup.workspace
             PlasticWorkspaceLookup.NotFound -> return null
         }
-        if (PlasticRootChecker.isAdministrativePath(workspace.root, normalizedScope)) return null
+
+        if (PlasticRootChecker.isAdministrativePath(workspace.root, normalizedScope)) {
+            return null
+        }
 
         val status = unwrap(
             gateway.status(workspace, normalizedScope, cancellation, includePrivateFiles),
@@ -117,9 +121,11 @@ class PlasticVcs(
         val normalizedPath = filePath.toAbsolutePath().normalize()
         val gateway = gateway()
         val workspace = workspaceForPath(gateway, normalizedPath, cancellation)
+
         if (PlasticRootChecker.isAdministrativePath(workspace.root, normalizedPath)) {
             throw VcsException("Plastic history is unavailable for workspace metadata.")
         }
+
         return unwrap(
             gateway.fileHistory(
                 workspace = workspace,
@@ -176,7 +182,10 @@ class PlasticVcs(
 
     private fun gateway(): PlasticGateway {
         val result = synchronized(gatewayLock) {
-            if (stopped || project.isDisposed) throw ProcessCanceledException()
+            if (stopped || project.isDisposed) {
+                throw ProcessCanceledException()
+            }
+
             gatewayResult ?: PlasticGatewayFactory().create().also { gatewayResult = it }
         }
         return unwrap(result, "initialization")
@@ -188,6 +197,7 @@ class PlasticVcs(
         cancellation: PlasticCancellation,
     ): PlasticWorkspace {
         val normalizedRoot = root.toAbsolutePath().normalize()
+
         return when (
             val lookup = unwrap(
                 gateway.discoverWorkspace(normalizedRoot, cancellation),

@@ -25,6 +25,7 @@ class PlasticGatewayFactory(
         return when (resolution) {
             is PlasticExecutableResolution.Resolved -> {
                 val lookupDirectory = realDirectory(settings.historicalLookupDirectory)
+
                 if (lookupDirectory == null || workspaceLocator.findRoot(lookupDirectory) != null) {
                     failure(
                         reason = PlasticFailure.InvalidRuntimeConfiguration,

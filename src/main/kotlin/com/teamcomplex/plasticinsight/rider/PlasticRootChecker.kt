@@ -11,7 +11,10 @@ import java.nio.file.Path
 /** Recognizes only the exact Plastic root and never starts the CLI. */
 class PlasticRootChecker : VcsRootChecker() {
     override fun isRoot(root: VirtualFile): Boolean {
-        if (!root.isDirectory) return false
+        if (!root.isDirectory) {
+            return false
+        }
+
         val administrativeDirectory = root.findChild(ADMINISTRATIVE_DIRECTORY) ?: return false
         val marker = administrativeDirectory.findChild(WORKSPACE_MARKER) ?: return false
         return administrativeDirectory.isDirectory && !marker.isDirectory

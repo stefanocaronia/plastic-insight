@@ -21,16 +21,21 @@ internal class PlasticDiffProvider(
 ) : DiffProvider {
     override fun getCurrentRevision(file: VirtualFile): VcsRevisionNumber? =
         safely {
-            if (file.isDirectory || vcs.isDispatchThread()) return@safely null
+            if (file.isDirectory || vcs.isDispatchThread()) {
+                return@safely null
+            }
+
             val path = file.localPath()
             val snapshot = vcs.loadStatus(path, vcs.currentCancellation(), includePrivateFiles = true)
                 ?: return@safely null
+
             if (snapshot.status.changes.any { change ->
                     change.matches(path) && change.codes.any(::hasNoControlledRevision)
                 }
             ) {
                 return@safely null
             }
+
             VcsRevisionNumber.Long(snapshot.status.workspaceChangeset)
         }
 
@@ -52,19 +57,27 @@ internal class PlasticDiffProvider(
         selectedFile: VirtualFile,
         expectedRevision: VcsRevisionNumber?,
     ): ContentRevision? {
-        if (selectedFile.isDirectory || vcs.isDispatchThread()) return null
+        if (selectedFile.isDirectory || vcs.isDispatchThread()) {
+            return null
+        }
+
         val selectedPath = selectedFile.localPath()
         val snapshot = vcs.loadStatus(selectedPath, vcs.currentCancellation(), includePrivateFiles = true) ?: return null
         val currentNumber = VcsRevisionNumber.Long(snapshot.status.workspaceChangeset)
-        if (expectedRevision != null && expectedRevision != currentNumber) return null
+
+        if (expectedRevision != null && expectedRevision != currentNumber) {
+            return null
+        }
 
         val pendingChange = snapshot.status.changes.firstOrNull { change -> change.matches(selectedPath) }
+
         if (pendingChange?.codes?.any { code ->
                 code == PlasticStatusCode.ADDED || hasNoControlledRevision(code)
             } == true
         ) {
             return null
         }
+
         val basePath = pendingChange?.oldPath ?: selectedPath
         return PlasticBaseContentRevision(
             vcs = vcs,

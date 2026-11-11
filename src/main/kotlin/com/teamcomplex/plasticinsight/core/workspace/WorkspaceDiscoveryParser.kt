@@ -8,14 +8,17 @@ import java.util.UUID
 class WorkspaceDiscoveryParser {
     fun parse(output: String): PlasticWorkspace {
         val record = output.trimEnd('\r', '\n')
+
         if (record.isEmpty()) {
             throw PlasticParseException("Workspace discovery returned no fields.")
         }
+
         if (record.any { it == '\r' || it == '\n' }) {
             throw PlasticParseException("Workspace discovery returned more than one record.")
         }
 
         val fields = record.split(FIELD_SEPARATOR)
+
         if (fields.size != FIELD_COUNT) {
             throw PlasticParseException("Workspace discovery returned ${fields.size} fields; expected $FIELD_COUNT.")
         }

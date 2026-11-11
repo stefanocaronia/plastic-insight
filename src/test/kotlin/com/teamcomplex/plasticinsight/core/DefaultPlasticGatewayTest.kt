@@ -556,6 +556,7 @@ class DefaultPlasticGatewayTest {
                 entered.countDown()
                 check(release.await(5, TimeUnit.SECONDS))
             }
+
             return result.deliveredAsContentFile(invocation)
         }
     }

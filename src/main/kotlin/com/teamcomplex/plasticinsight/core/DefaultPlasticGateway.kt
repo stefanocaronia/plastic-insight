@@ -109,6 +109,7 @@ internal class DefaultPlasticGateway(
         } catch (_: PlasticParseException) {
             return parseFailure(PlasticOperation.WORKSPACE_DISCOVERY, result.state())
         }
+
         if (token.isCancellationRequested()) {
             return cancellationFailure(PlasticOperation.WORKSPACE_DISCOVERY, result.state())
         }
@@ -146,6 +147,7 @@ internal class DefaultPlasticGateway(
             checkParsingCancellation(token)
             statusParser.parse(result.standardOutput) { checkParsingCancellation(token) }.also { parsed ->
                 val root = workspace.root.normalize()
+
                 if (parsed.changes.any { change ->
                         !change.path.normalize().startsWith(root) ||
                             (change.oldPath != null && !change.oldPath.normalize().startsWith(root))
@@ -159,9 +161,11 @@ internal class DefaultPlasticGateway(
         } catch (_: PlasticParseException) {
             return parseFailure(PlasticOperation.STATUS, result.state())
         }
+
         if (token.isCancellationRequested()) {
             return cancellationFailure(PlasticOperation.STATUS, result.state())
         }
+
         return processSuccess(PlasticOperation.STATUS, result.state(), status)
     }
 
@@ -196,6 +200,7 @@ internal class DefaultPlasticGateway(
         }
         val result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
         processFailure(PlasticOperation.BASE_CONTENT, result.state())?.let { return it }
+
         if (token.isCancellationRequested()) {
             return cancellationFailure(PlasticOperation.BASE_CONTENT, result.state())
         }
@@ -257,21 +262,26 @@ internal class DefaultPlasticGateway(
         var query = cached?.query ?: HistoryQuery.WorkspacePath(normalizedPath)
         var execution = executeFileHistory(workspace, query, request.limit + 1, token)
         var result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
+
         if (query is HistoryQuery.WorkspacePath && result.isPendingMoveCandidate()) {
             val status = when (val statusResult = status(workspace, workspace.root, token)) {
                 is PlasticResult.Success -> statusResult.value
                 is PlasticResult.Failure -> null
             }
+
             if (token.isCancellationRequested()) {
                 return cancellationFailure(PlasticOperation.FILE_HISTORY, result.state())
             }
+
             val movedQuery = status?.movedHistoryQuery(workspace, normalizedPath)
+
             if (movedQuery != null) {
                 query = movedQuery
                 execution = executeFileHistory(workspace, query, request.limit + 1, token)
                 result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
             }
         }
+
         processFailure(PlasticOperation.FILE_HISTORY, result.state())?.let { return it }
 
         val parsed = try {
@@ -285,9 +295,11 @@ internal class DefaultPlasticGateway(
         } catch (_: PlasticParseException) {
             return parseFailure(PlasticOperation.FILE_HISTORY, result.state())
         }
+
         if (token.isCancellationRequested()) {
             return cancellationFailure(PlasticOperation.FILE_HISTORY, result.state())
         }
+
         val newestFirst = parsed.revisions.asReversed()
         val page = PlasticHistoryPage(
             revisions = Collections.unmodifiableList(ArrayList(newestFirst.take(request.limit))),
@@ -340,6 +352,7 @@ internal class DefaultPlasticGateway(
         cancellationPrecheck(PlasticOperation.REVISION_CONTENT, cancellation)?.let { return it }
         val changeset = (revision.changeset as? PlasticHistoryChangeset.Number)?.value
         val itemId = revision.itemId
+
         if (revision.entryKind != PlasticHistoryEntryKind.CONTENT_REVISION ||
             changeset == null ||
             itemId == null ||
@@ -362,6 +375,7 @@ internal class DefaultPlasticGateway(
 
         val token = combinedCancellation(cancellation)
         val cachedPath = historicalPathCache[key]
+
         val historicalPath = if (cachedPath != null) {
             recordIntermediateCacheHit(PlasticOperation.HISTORICAL_PATH)
             cachedPath
@@ -371,6 +385,7 @@ internal class DefaultPlasticGateway(
                 is PlasticResult.Failure -> return pathResult
             }
         }
+
         val execution = runCommand(PlasticOperation.REVISION_CONTENT) {
             cli.historicalContent(
                 executionDirectory = historicalLookupDirectory,
@@ -383,6 +398,7 @@ internal class DefaultPlasticGateway(
         }
         val result = execution.resultOrReturnFailure() ?: return requireNotNull(execution.failure)
         processFailure(PlasticOperation.REVISION_CONTENT, result.state())?.let { return it }
+
         if (token.isCancellationRequested()) {
             return cancellationFailure(PlasticOperation.REVISION_CONTENT, result.state())
         }
@@ -424,7 +440,11 @@ internal class DefaultPlasticGateway(
         // A failed or cancelled multi-item command may still have changed a subset.
         invalidateCaches()
         processFailure(operation, result.state())?.let { return it }
-        if (token.isCancellationRequested()) return cancellationFailure(operation, result.state())
+
+        if (token.isCancellationRequested()) {
+            return cancellationFailure(operation, result.state())
+        }
+
         return processSuccess(operation, result.state(), Unit)
     }
 
@@ -471,6 +491,7 @@ internal class DefaultPlasticGateway(
 
             is PlasticHistoricalRevisionLookup.Found -> lookup.revision
         }
+
         if (found.itemId != key.itemId ||
             found.changeset != key.changeset ||
             found.repositoryName != key.repository ||
@@ -498,7 +519,9 @@ internal class DefaultPlasticGateway(
         action: () -> Unit,
     ) {
         synchronized(lifecycleLock) {
-            if (!disposed.get() && cacheGeneration.get() == generation) action()
+            if (!disposed.get() && cacheGeneration.get() == generation) {
+                action()
+            }
         }
     }
 
@@ -513,7 +536,9 @@ internal class DefaultPlasticGateway(
         PlasticCancellation { disposed.get() || caller.isCancellationRequested() }
 
     private fun checkParsingCancellation(cancellation: PlasticCancellation) {
-        if (cancellation.isCancellationRequested()) throw ParsingCancelledException()
+        if (cancellation.isCancellationRequested()) {
+            throw ParsingCancelledException()
+        }
     }
 
     private inline fun <T> runCommand(
@@ -521,6 +546,7 @@ internal class DefaultPlasticGateway(
         action: () -> T,
     ): CommandExecution<T> {
         val startedAt = System.nanoTime()
+
         return try {
             CommandExecution(result = action())
         } catch (_: IOException) {
@@ -600,6 +626,7 @@ internal class DefaultPlasticGateway(
 
             else -> PlasticDiagnosticOutcome.FAILED
         }
+
         return failure(operation, state, outcome, reason)
     }
 
@@ -742,8 +769,14 @@ internal class DefaultPlasticGateway(
 
     /** Reuses a cached wider prefix, or a known complete history, without retaining overlapping pages. */
     private fun PlasticHistoryPage.boundedView(limit: Int): PlasticHistoryPage? {
-        if (revisions.size < limit) return takeUnless { hasMore }
-        if (revisions.size == limit) return this
+        if (revisions.size < limit) {
+            return takeUnless { hasMore }
+        }
+
+        if (revisions.size == limit) {
+            return this
+        }
+
         return PlasticHistoryPage(
             revisions = Collections.unmodifiableList(ArrayList(revisions.take(limit))),
             hasMore = true,

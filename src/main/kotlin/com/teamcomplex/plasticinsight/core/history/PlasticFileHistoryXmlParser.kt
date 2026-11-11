@@ -27,6 +27,7 @@ class PlasticFileHistoryXmlParser(
                         if (historiesContainerSeen) {
                             throw PlasticParseException("Plastic history contains duplicate histories containers.")
                         }
+
                         historiesContainerSeen = true
                         history = parseHistories(cursor)
                     }
@@ -47,6 +48,7 @@ class PlasticFileHistoryXmlParser(
                     if (history != null) {
                         throw PlasticParseException("Plastic history returned more than one requested item.")
                     }
+
                     history = parseHistory(cursor)
                 }
 
@@ -65,6 +67,7 @@ class PlasticFileHistoryXmlParser(
                     if (itemName != null) {
                         throw PlasticParseException("Plastic history contains a duplicate item name.")
                     }
+
                     itemName = cursor.readText(ITEM_NAME).requireNotBlank(ITEM_NAME)
                 }
 
@@ -72,6 +75,7 @@ class PlasticFileHistoryXmlParser(
                     if (revisions != null) {
                         throw PlasticParseException("Plastic history contains duplicate revision containers.")
                     }
+
                     revisions = parseRevisions(cursor)
                 }
 
@@ -94,6 +98,7 @@ class PlasticFileHistoryXmlParser(
                     if (revisions.size >= maxEntries) {
                         throw PlasticParseException("Plastic history exceeds the configured entry limit.")
                     }
+
                     revisions.add(parseRevision(cursor))
                 }
 
@@ -112,6 +117,7 @@ class PlasticFileHistoryXmlParser(
                     if (repositorySpec != null) {
                         throw PlasticParseException("Plastic history contains a duplicate repository spec.")
                     }
+
                     repositorySpec = parseRepositorySpec(cursor)
                 }
 
@@ -125,15 +131,18 @@ class PlasticFileHistoryXmlParser(
         val server = fields.requiredNonBlank(SERVER)
         val parsedRepositorySpec = repositorySpec
             ?: throw PlasticParseException("Plastic history has no repository spec.")
+
         if (parsedRepositorySpec.name != repository || parsedRepositorySpec.server != server) {
             throw PlasticParseException("Plastic history contains inconsistent repository information.")
         }
 
         val revisionTypeValue = fields.required(REVISION_TYPE).trim()
         val dataStatusValue = fields.required(DATA_STATUS).trim()
+
         if (revisionTypeValue.isEmpty() != dataStatusValue.isEmpty()) {
             throw PlasticParseException("Plastic history contains incomplete revision metadata.")
         }
+
         val isMetadataEvent = revisionTypeValue.isEmpty()
         val size = fields.requiredLong(SIZE, minimum = 0)
         val itemPath = fields.required(ITEM_PATH_OR_SPEC).takeUnless(String::isBlank)
@@ -225,9 +234,11 @@ class PlasticFileHistoryXmlParser(
 
     private fun Map<String, String>.requiredChangeset(name: String): PlasticHistoryChangeset {
         val value = required(name).trim()
+
         if (value == CHECKOUT_CHANGESET) {
             return PlasticHistoryChangeset.Checkout
         }
+
         return PlasticHistoryChangeset.Number(value.parseLong(name, minimum = 0))
     }
 
@@ -244,9 +255,11 @@ class PlasticFileHistoryXmlParser(
     ): Long {
         val result = toLongOrNull()
             ?: throw PlasticParseException("Plastic history contains an invalid $name field.")
+
         if (result < minimum) {
             throw PlasticParseException("Plastic history contains an invalid $name field.")
         }
+
         return result
     }
 

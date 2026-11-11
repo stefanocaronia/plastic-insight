@@ -9,6 +9,7 @@ import java.nio.file.Path
 internal inline fun <T> withTemporaryContentFile(action: (Path) -> T): T {
     val directory = Files.createTempDirectory(CONTENT_DIRECTORY_PREFIX)
     val file = directory.resolve(CONTENT_FILE_NAME)
+
     try {
         return action(file)
     } finally {
@@ -24,9 +25,11 @@ internal fun readBoundedContentFile(
 ): BoundedOutputCapture {
     check(Files.isRegularFile(file)) { "Plastic reported success without writing the revision content." }
     val size = Files.size(file)
+
     if (size > limitBytes) {
         return BoundedOutputCapture(byteArrayOf(), size, truncated = true)
     }
+
     return Files.newInputStream(file).use { input -> captureBoundedOutput(input, limitBytes) }
 }
 

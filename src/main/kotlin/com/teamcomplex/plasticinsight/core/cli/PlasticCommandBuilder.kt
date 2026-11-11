@@ -95,11 +95,13 @@ class PlasticCommandBuilder(
                 add("--changed")
                 add("--localdeleted")
                 add("--localmoved")
+
                 if (includePrivateFiles) {
                     add("--private")
                     add("--ignored")
                     add("--cutignored")
                 }
+
                 add("--fieldseparator=$UNIT_SEPARATOR")
                 add("--startlineseparator=$RECORD_SEPARATOR")
                 add("--endlineseparator=$GROUP_SEPARATOR")

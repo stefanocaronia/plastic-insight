@@ -8,7 +8,10 @@ import java.nio.file.Path
 /** Stands in for `cm cat --file`: a successful fake result leaves its bytes in the requested file, not on stdout. */
 internal fun PlasticProcessResult.deliveredAsContentFile(invocation: PlasticInvocation): PlasticProcessResult {
     val contentFile = invocation.contentFile()
-    if (contentFile == null || exitCode != 0) return this
+
+    if (contentFile == null || exitCode != 0) {
+        return this
+    }
 
     Files.write(contentFile, standardOutput)
     return copy(standardOutput = byteArrayOf(), standardOutputBytesRead = 0)

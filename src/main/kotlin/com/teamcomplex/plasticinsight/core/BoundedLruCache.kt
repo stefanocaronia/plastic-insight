@@ -26,7 +26,10 @@ internal class BoundedLruCache<K : Any, V : Any>(
 
         synchronized(this) {
             removeEntry(key)
-            if (weight > maxWeight) return false
+
+            if (weight > maxWeight) {
+                return false
+            }
 
             while (entries.isNotEmpty() &&
                 (entries.size >= maxEntries || currentWeight > maxWeight - weight)
