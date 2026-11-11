@@ -27,7 +27,7 @@ class PlasticVcs(
     project: Project,
 ) : AbstractVcs(project, NAME) {
     private val session = PlasticGatewaySession(
-        createGateway = { PlasticGatewayFactory().create() },
+        createGateway = { PlasticGatewayFactory().create(diagnosticSink = PlasticLog.diagnosticSink) },
         isProjectDisposed = { project.isDisposed },
         isDispatchThread = ::isDispatchThread,
     )

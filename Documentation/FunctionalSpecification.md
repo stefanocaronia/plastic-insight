@@ -3,7 +3,7 @@ title: Plastic Insight Functional Specification
 status: Draft
 version: 0.1
 created: 2026-08-18
-updated: 2026-09-18
+updated: 2026-11-11
 ---
 
 # Plastic Insight Functional Specification
@@ -117,7 +117,7 @@ Implementation baseline as of 2026-08-19: the standard Rider `CheckinEnvironment
 - FR-033: log command names, duration, and exit status without leaking credentials or full file content.
 - FR-034: show actionable errors rather than silent empty views.
 
-Implementation baseline as of 2026-08-19: the core resolves `cm.exe` once in the order explicit setting, `CM_EXE`, common 64-bit and 32-bit installation paths, then `PATH`, without recursive filesystem scans. Runtime settings carry a positive command timeout and a canonical non-workspace directory for historical queries. Privacy-safe diagnostics retain only operation, origin, outcome, duration, exit code, and byte counts; they never retain arguments, paths, stderr text, XML, or file content. Rider settings UI, notifications, and the connection-test action remain later adapter work.
+Implementation baseline as of 2026-08-19: the core resolves `cm.exe` once in the order explicit setting, `CM_EXE`, common 64-bit and 32-bit installation paths, then `PATH`, without recursive filesystem scans. Runtime settings carry a positive command timeout and a canonical non-workspace directory for historical queries. Privacy-safe diagnostics retain only operation, origin, outcome, duration, exit code, and byte counts; they never retain arguments, paths, stderr text, XML, or file content. Since 2026-11-11 the Rider adapter writes each diagnostic to the IDE log under the category `#com.teamcomplex.plasticinsight`: failed, timed-out, and truncated commands as warnings, everything else at debug level. Rider settings UI, notifications, and the connection-test action remain later adapter work.
 
 ## 5. Out of scope for the MVP
 

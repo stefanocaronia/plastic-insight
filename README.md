@@ -34,6 +34,8 @@ This first release is Windows-only. Linux is not advertised as supported because
 
 `cm.exe` is resolved from `CM_EXE`, the standard Plastic installation folders, or `PATH`.
 
+When a Plastic command fails, times out, or exceeds its output limit, Plastic Insight writes one warning line to Rider's log (**Help | Show Log in Explorer**) with the operation, exit code, duration, and byte counts, never paths or file content. To log every command, add `#com.teamcomplex.plasticinsight` in **Help | Diagnostic Tools | Debug Log Settings**.
+
 ## Install
 
 1. Download the latest `plastic-insight-<version>-signed.zip` from the GitHub Release (0.1.3 or later for Rider 2026.3; releases up to 0.1.3 ship an unsigned `plastic-insight-<version>.zip`).

@@ -1,6 +1,5 @@
 package com.teamcomplex.plasticinsight.rider
 
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.vcs.FilePath
 import com.intellij.openapi.vcs.VcsException
@@ -79,17 +78,13 @@ internal class PlasticDiffProvider(
         } catch (cancelled: ProcessCanceledException) {
             throw cancelled
         } catch (failure: VcsException) {
-            LOG.debug(failure.message)
+            PlasticLog.debug(failure.message)
             null
         } catch (_: InvalidPathException) {
             null
         }
 
     private fun VirtualFile.localPath(): Path = Path.of(path).toAbsolutePath().normalize()
-
-    private companion object {
-        val LOG: Logger = Logger.getInstance(PlasticDiffProvider::class.java)
-    }
 }
 
 /** The workspace changeset when the file has a controlled revision; private and ignored files have none. */
