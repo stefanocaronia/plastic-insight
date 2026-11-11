@@ -126,20 +126,6 @@ class PlasticCli(
             )
         }
 
-    fun execute(
-        workingDirectory: Path,
-        vararg arguments: String,
-    ): PlasticTextResult =
-        execute(
-            PlasticInvocation(
-                executable = executable,
-                arguments = arguments.toList(),
-                workingDirectory = workingDirectory,
-                timeout = timeout,
-            ),
-            PlasticCancellation.NONE,
-        )
-
     private fun execute(
         invocation: PlasticInvocation,
         cancellation: PlasticCancellation,
