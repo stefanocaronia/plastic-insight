@@ -103,6 +103,7 @@ internal class GatewayResults(
             result = result,
             outcome = PlasticDiagnosticOutcome.FAILED,
             reason = PlasticFailure.MalformedOutput,
+            origin = PlasticDiagnosticOrigin.PARSING,
         )
 
     fun precheckFailure(
@@ -149,8 +150,9 @@ internal class GatewayResults(
         result: PlasticCommandResult<*>,
         outcome: PlasticDiagnosticOutcome,
         reason: PlasticFailure,
+        origin: PlasticDiagnosticOrigin = PlasticDiagnosticOrigin.PROCESS,
     ): PlasticResult.Failure {
-        val diagnostic = result.diagnostic(operation, outcome)
+        val diagnostic = result.diagnostic(operation, outcome, origin)
         diagnosticSink.recordSafely(diagnostic)
         return PlasticResult.Failure(reason, diagnostic)
     }
@@ -170,10 +172,11 @@ internal class GatewayResults(
     private fun PlasticCommandResult<*>.diagnostic(
         operation: PlasticOperation,
         outcome: PlasticDiagnosticOutcome,
+        origin: PlasticDiagnosticOrigin = PlasticDiagnosticOrigin.PROCESS,
     ): PlasticDiagnostic =
         PlasticDiagnostic(
             operation = operation,
-            origin = PlasticDiagnosticOrigin.PROCESS,
+            origin = origin,
             outcome = outcome,
             duration = duration,
             exitCode = exitCode,

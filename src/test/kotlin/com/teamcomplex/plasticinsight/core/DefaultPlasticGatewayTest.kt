@@ -145,6 +145,20 @@ class DefaultPlasticGatewayTest {
     }
 
     @Test
+    fun `unreadable output is recorded as a parsing failure of a command that exited with zero`() {
+        val gateway = gateway(RecordingRunner(success("not framed".toByteArray())))
+
+        val result = assertIs<PlasticResult.Failure>(
+            gateway.status(sampleWorkspace, sampleRoot.resolve("file.cs")),
+        )
+
+        assertIs<PlasticFailure.MalformedOutput>(result.reason)
+        assertEquals(PlasticDiagnosticOrigin.PARSING, result.diagnostic.origin)
+        assertEquals(PlasticDiagnosticOutcome.FAILED, result.diagnostic.outcome)
+        assertEquals(0, result.diagnostic.exitCode)
+    }
+
+    @Test
     fun `status rejects every current or old path outside the workspace`() {
         val outsideStatus = (
             "\u001ESTATUS\u001F42\u001FSample Repository\u001Fexample@cloud\u001D" +

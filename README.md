@@ -34,7 +34,7 @@ This first release is Windows-only. Linux is not advertised as supported because
 
 `cm.exe` is resolved from `CM_EXE`, the standard Plastic installation folders, or `PATH`.
 
-When a Plastic command fails, times out, or exceeds its output limit, Plastic Insight writes one warning line to Rider's log (**Help | Show Log in Explorer**) with the operation, exit code, duration, and byte counts, never paths or file content. To log every command, add `#com.teamcomplex.plasticinsight` in **Help | Diagnostic Tools | Debug Log Settings**.
+When a Plastic command fails, times out, or exceeds its output limit, Plastic Insight writes one warning line to Rider's log (**Help | Show Log in Explorer**) with the operation, exit code, duration, and byte counts, never paths or file content; `(PARSING)` in that line means the command ran but its output could not be read. To log every command, add `#com.teamcomplex.plasticinsight` in **Help | Diagnostic Tools | Debug Log Settings**.
 
 ## Install
 

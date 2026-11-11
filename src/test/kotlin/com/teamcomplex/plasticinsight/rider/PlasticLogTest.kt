@@ -42,6 +42,24 @@ class PlasticLogTest {
     }
 
     @Test
+    fun `output that could not be read is logged as a parsing failure`() {
+        val failure = PlasticDiagnostic(
+            operation = PlasticOperation.STATUS,
+            origin = PlasticDiagnosticOrigin.PARSING,
+            outcome = PlasticDiagnosticOutcome.FAILED,
+            duration = Duration.ofMillis(753),
+            exitCode = 0,
+            standardOutputBytesRead = 41150,
+            standardErrorBytesRead = 0,
+        )
+
+        assertEquals(
+            "Plastic STATUS FAILED (PARSING): exit code 0, 753 ms, 41150 stdout bytes, 0 stderr bytes",
+            failure.logLine(),
+        )
+    }
+
+    @Test
     fun `a diagnostic without a process prints no exit code and zero bytes`() {
         val cacheHit = PlasticDiagnostic(
             operation = PlasticOperation.BASE_CONTENT,

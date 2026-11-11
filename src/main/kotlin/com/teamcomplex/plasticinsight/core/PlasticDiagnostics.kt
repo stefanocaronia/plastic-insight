@@ -14,9 +14,11 @@ enum class PlasticOperation {
     REVISION_CONTENT,
 }
 
+/** Where an outcome was decided; `PARSING` means the command ran but its output could not be read. */
 enum class PlasticDiagnosticOrigin {
     PRECHECK,
     PROCESS,
+    PARSING,
     CACHE,
 }
 
